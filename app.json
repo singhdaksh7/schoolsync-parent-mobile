@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "SchoolSync Parent",
+    "slug": "schoolsync-parent",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1976D2",
+        "foregroundImage": "./assets/icon.png"
+      },
+      "package": "com.schoolsync.parent"
+    },
+    "web": {
+      "output": "static"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "76bd46fd-2b25-46c4-9972-99b43e3aa071"
+      }
+    }
+  }
+}
