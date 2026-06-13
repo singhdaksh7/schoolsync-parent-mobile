@@ -84,15 +84,17 @@ type HomeworkItem = {
   title: string;
   subject: string;
   dueDate: string;
+  deadlineAt: string;
   homeworkStatus: 'ACTIVE' | 'CLOSED' | 'CANCELLED';
   submissionStatus:
     | 'PENDING'
     | 'SUBMITTED'
+    | 'LATE_SUBMITTED'
     | 'NOT_SUBMITTED'
-    | 'LATE'
     | 'CHECKED'
-    | 'REVIEWED'
     | 'REJECTED';
+  submissionMethod: 'NONE' | 'ONLINE' | 'PHYSICAL';
+  checkedAt: string | null;
   submittedAt: string | null;
   score: number | null;
   maxScore: number | null;
@@ -104,6 +106,9 @@ type HomeworkItem = {
     fileType: string | null;
     submittedAt: string;
     status: 'SUBMITTED' | 'LATE' | 'REVIEWED' | 'REJECTED';
+    submissionStatus: HomeworkItem['submissionStatus'];
+    submissionMethod: HomeworkItem['submissionMethod'];
+    checkedAt: string | null;
   } | null;
   teacher?: {
     name?: string;
@@ -182,6 +187,11 @@ async function apiRequest<T>(
 function formatDate(isoDate: string) {
   const date = new Date(isoDate);
   return Number.isNaN(date.getTime()) ? isoDate : date.toLocaleDateString();
+}
+
+function formatDateTime(isoDate: string) {
+  const date = new Date(isoDate);
+  return Number.isNaN(date.getTime()) ? isoDate : date.toLocaleString();
 }
 
 export default function App() {
@@ -532,17 +542,23 @@ export default function App() {
                 <View style={styles.listRowLeft}>
                   <Text style={styles.listRowTitle}>{item.title}</Text>
                   <Text style={styles.listRowSubtext}>
-                    {item.subject} • Due {formatDate(item.dueDate)}
+                    {item.subject} • Deadline {formatDateTime(item.deadlineAt)}
                     {item.teacher?.name ? ` • ${item.teacher.name}` : ''}
                   </Text>
+                  <Text style={styles.remarkText}>
+                    Status: {item.submissionStatus.replace('_', ' ')} • Method: {item.submissionMethod}
+                  </Text>
                   {item.teacherRemark ? (
-                    <Text style={styles.remarkText}>{item.teacherRemark}</Text>
+                    <Text style={styles.remarkText}>Remark: {item.teacherRemark}</Text>
                   ) : null}
                   {item.submission?.attachmentUrl ? (
-                    <Text style={styles.remarkText}>Submitted: {item.submission.attachmentUrl}</Text>
+                    <Text style={styles.remarkText}>Attachment: {item.submission.attachmentUrl}</Text>
                   ) : null}
                   {item.submittedAt ? (
-                    <Text style={styles.remarkText}>Submitted on {formatDate(item.submittedAt)}</Text>
+                    <Text style={styles.remarkText}>Submitted on {formatDateTime(item.submittedAt)}</Text>
+                  ) : null}
+                  {item.checkedAt ? (
+                    <Text style={styles.remarkText}>Checked on {formatDateTime(item.checkedAt)}</Text>
                   ) : null}
                   {item.homeworkStatus === 'ACTIVE' ? (
                     <View style={styles.submitWrap}>
@@ -571,7 +587,8 @@ export default function App() {
                   ) : null}
                 </View>
                 <View style={styles.homeworkMeta}>
-                  <Text style={styles.statusPill}>{item.submissionStatus}</Text>
+                  <Text style={styles.statusPill}>{item.submissionStatus.replace('_', ' ')}</Text>
+                  <Text style={styles.methodPill}>{item.submissionMethod}</Text>
                   {item.score !== null && item.maxScore !== null ? (
                     <Text style={styles.listRowValue}>
                       {item.score}/{item.maxScore}
@@ -843,6 +860,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#e9f2ff',
     color: '#0d47a1',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  methodPill: {
+    overflow: 'hidden',
+    borderRadius: 999,
+    backgroundColor: '#f3f4f6',
+    color: '#374151',
     paddingHorizontal: 8,
     paddingVertical: 3,
     fontSize: 10,
