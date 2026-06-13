@@ -80,14 +80,31 @@ type AnnouncementItem = {
 type HomeworkItem = {
   id: string;
   homeworkId: string;
+  studentId: string;
   title: string;
   subject: string;
   dueDate: string;
   homeworkStatus: 'ACTIVE' | 'CLOSED' | 'CANCELLED';
-  submissionStatus: 'PENDING' | 'SUBMITTED' | 'NOT_SUBMITTED' | 'LATE' | 'CHECKED';
+  submissionStatus:
+    | 'PENDING'
+    | 'SUBMITTED'
+    | 'NOT_SUBMITTED'
+    | 'LATE'
+    | 'CHECKED'
+    | 'REVIEWED'
+    | 'REJECTED';
+  submittedAt: string | null;
   score: number | null;
   maxScore: number | null;
   teacherRemark: string | null;
+  submission?: {
+    id: string;
+    attachmentUrl: string;
+    fileName: string | null;
+    fileType: string | null;
+    submittedAt: string;
+    status: 'SUBMITTED' | 'LATE' | 'REVIEWED' | 'REJECTED';
+  } | null;
   teacher?: {
     name?: string;
   };
@@ -182,6 +199,8 @@ export default function App() {
   const [pendingFees, setPendingFees] = useState<PendingFeeItem[]>([]);
   const [loadingLogin, setLoadingLogin] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
+  const [submittingHomeworkId, setSubmittingHomeworkId] = useState<string | null>(null);
+  const [submissionUrls, setSubmissionUrls] = useState<Record<string, string>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -325,6 +344,39 @@ export default function App() {
       setError('Payment order created. Razorpay checkout needs the native mobile package to complete payment.');
     } catch (orderError) {
       setError(orderError instanceof Error ? orderError.message : 'Failed to create payment order.');
+    }
+  }
+
+  async function handleSubmitHomework(item: HomeworkItem) {
+    if (!token) return;
+    const attachmentUrl = (submissionUrls[item.id] || '').trim();
+    if (!attachmentUrl) {
+      setError('Enter an attachment URL before submitting homework.');
+      return;
+    }
+
+    setSubmittingHomeworkId(item.id);
+    setError(null);
+    try {
+      await apiRequest(
+        `/api/parent/homework/${item.homeworkId}/submit`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            studentId: item.studentId,
+            attachmentUrl,
+          }),
+        },
+        token
+      );
+      setSubmissionUrls((prev) => ({ ...prev, [item.id]: '' }));
+      if (selectedStudentId) {
+        await loadStudentData(token, selectedStudentId);
+      }
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Failed to submit homework.');
+    } finally {
+      setSubmittingHomeworkId(null);
     }
   }
 
@@ -485,6 +537,37 @@ export default function App() {
                   </Text>
                   {item.teacherRemark ? (
                     <Text style={styles.remarkText}>{item.teacherRemark}</Text>
+                  ) : null}
+                  {item.submission?.attachmentUrl ? (
+                    <Text style={styles.remarkText}>Submitted: {item.submission.attachmentUrl}</Text>
+                  ) : null}
+                  {item.submittedAt ? (
+                    <Text style={styles.remarkText}>Submitted on {formatDate(item.submittedAt)}</Text>
+                  ) : null}
+                  {item.homeworkStatus === 'ACTIVE' ? (
+                    <View style={styles.submitWrap}>
+                      <TextInput
+                        autoCapitalize="none"
+                        placeholder="Paste attachment URL"
+                        placeholderTextColor="#8a8a8a"
+                        style={styles.submitInput}
+                        value={submissionUrls[item.id] || ''}
+                        onChangeText={(value) =>
+                          setSubmissionUrls((prev) => ({ ...prev, [item.id]: value }))
+                        }
+                      />
+                      <Pressable
+                        style={styles.smallButton}
+                        onPress={() => handleSubmitHomework(item)}
+                        disabled={submittingHomeworkId === item.id}
+                      >
+                        {submittingHomeworkId === item.id ? (
+                          <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                          <Text style={styles.smallButtonText}>Submit</Text>
+                        )}
+                      </Pressable>
+                    </View>
                   ) : null}
                 </View>
                 <View style={styles.homeworkMeta}>
@@ -770,6 +853,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     color: '#4b5563',
+  },
+  submitWrap: {
+    marginTop: 10,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  submitInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: '#222',
+    backgroundColor: '#fff',
   },
   smallButton: {
     backgroundColor: '#1976D2',
