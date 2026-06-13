@@ -42,6 +42,37 @@ To learn more about developing your project with Expo, look at the following res
 - [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
 - [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
 
+## Build Android APK
+
+This project is configured to generate an installable Android **APK** with the EAS `preview` profile.
+
+```bash
+npm run build:apk
+```
+
+For Play Store upload builds (`.aab`):
+
+```bash
+npm run build:aab
+```
+
+## Parent app features
+
+- Parent login using SchoolSync account credentials
+- View linked children
+- View attendance (last 30 days)
+- View marks/exam results
+- View class timetable
+- View school announcements
+
+The app reads backend base URL from:
+
+```bash
+EXPO_PUBLIC_API_URL=...
+```
+
+Current local setup points to production in `.env.local`.
+
 ## Join the community
 
 Join our community of developers creating universal apps.
