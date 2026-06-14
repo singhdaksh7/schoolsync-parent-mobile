@@ -85,7 +85,16 @@ type AttendanceItem = {
 type MarkItem = {
   id: string;
   marks: number;
+  grade?: string | null;
   exam: { name: string; maxMarks: number; scheme?: { name: string } };
+};
+
+type StudentAttendanceSummary = {
+  present: number;
+  absent: number;
+  late: number;
+  total: number;
+  percentage: number;
 };
 
 type ReportCardItem = {
@@ -314,6 +323,13 @@ export default function App() {
   const [studentSchool, setStudentSchool] = useState<SchoolInfo | null>(null);
   const [studentLoading, setStudentLoading] = useState(false);
   const [studentError, setStudentError] = useState<string | null>(null);
+  const [studentAttendance, setStudentAttendance] = useState<AttendanceItem[]>([]);
+  const [studentAttendanceSummary, setStudentAttendanceSummary] = useState<StudentAttendanceSummary | null>(null);
+  const [studentHomework, setStudentHomework] = useState<HomeworkItem[]>([]);
+  const [studentTodayTimetable, setStudentTodayTimetable] = useState<TimetableItem[]>([]);
+  const [studentMarks, setStudentMarks] = useState<MarkItem[]>([]);
+  const [studentReportCards, setStudentReportCards] = useState<ReportCardItem[]>([]);
+  const [studentAnnouncements, setStudentAnnouncements] = useState<AnnouncementItem[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -349,9 +365,12 @@ export default function App() {
         const restoredRole = normalizeRole(restoredUser.role);
         if (restoredRole === 'PARENT') await loadParentDashboard(parsed.token, null);
         if (restoredRole === 'TEACHER') await loadTeacherDashboard(parsed.token);
-        if (restoredRole === 'STUDENT' && me.student) {
-          setStudentProfile(me.student);
-          setStudentSchool(me.school ?? null);
+        if (restoredRole === 'STUDENT') {
+          if (me.student) {
+            setStudentProfile(me.student);
+            setStudentSchool(me.school ?? null);
+          }
+          await loadStudentDashboard(parsed.token);
         }
       } catch {
         await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
@@ -460,16 +479,42 @@ export default function App() {
     setStudentLoading(true);
     setStudentError(null);
     try {
-      // Only the student profile is fetchable today (no student-scoped data APIs
-      // exist, and parent APIs reject student tokens). Re-fetch /api/mobile/me so
-      // pull-to-refresh keeps the profile header in sync.
-      const me = await apiRequest<MobileMeResponse>('/api/mobile/me', {}, authToken);
-      if (me.role === 'STUDENT' && me.student) {
-        setStudentProfile(me.student);
-        setStudentSchool(me.school ?? null);
+      // Each section is independent — use allSettled so one failing endpoint
+      // doesn't blank the whole dashboard. All requests carry the student Bearer
+      // token and are scoped server-side to this student's own school/data.
+      const [meR, attR, hwR, ttR, mkR, rcR, anR] = await Promise.allSettled([
+        apiRequest<MobileMeResponse>('/api/mobile/me', {}, authToken),
+        apiRequest<{ attendance: AttendanceItem[]; summary: StudentAttendanceSummary }>('/api/student/attendance', {}, authToken),
+        apiRequest<{ homework: HomeworkItem[] }>('/api/student/homework', {}, authToken),
+        apiRequest<{ timetable: TimetableItem[]; today: TimetableItem[] }>('/api/student/timetable', {}, authToken),
+        apiRequest<{ marks: MarkItem[] }>('/api/student/marks', {}, authToken),
+        apiRequest<{ reportCards: ReportCardItem[] }>('/api/student/report-cards', {}, authToken),
+        apiRequest<{ announcements: AnnouncementItem[] }>('/api/student/announcements', {}, authToken),
+      ]);
+
+      if (meR.status === 'fulfilled' && meR.value.role === 'STUDENT' && meR.value.student) {
+        setStudentProfile(meR.value.student);
+        setStudentSchool(meR.value.school ?? null);
       }
-    } catch (loadError) {
-      setStudentError(loadError instanceof Error ? loadError.message : 'Failed to load student profile.');
+      if (attR.status === 'fulfilled') {
+        setStudentAttendance(attR.value.attendance || []);
+        setStudentAttendanceSummary(attR.value.summary ?? null);
+      }
+      if (hwR.status === 'fulfilled') setStudentHomework(hwR.value.homework || []);
+      if (ttR.status === 'fulfilled') setStudentTodayTimetable(ttR.value.today || []);
+      if (mkR.status === 'fulfilled') setStudentMarks(mkR.value.marks || []);
+      if (rcR.status === 'fulfilled') setStudentReportCards(rcR.value.reportCards || []);
+      if (anR.status === 'fulfilled') setStudentAnnouncements(anR.value.announcements || []);
+
+      const failures = [meR, attR, hwR, ttR, mkR, rcR, anR].filter(
+        (result): result is PromiseRejectedResult => result.status === 'rejected'
+      );
+      if (failures.length === 7) {
+        const reason = failures[0].reason;
+        setStudentError(reason instanceof Error ? reason.message : 'Failed to load student dashboard.');
+      } else if (failures.length > 0) {
+        setStudentError('Some sections could not be loaded. Pull down to refresh and try again.');
+      }
     } finally {
       setStudentLoading(false);
       setRefreshing(false);
@@ -536,6 +581,7 @@ export default function App() {
         setStudentProfile(student);
         setStudentSchool(loginRes.school ?? null);
         await persistSession(loginRes.token, nextUser);
+        await loadStudentDashboard(loginRes.token);
       }
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : 'Login failed.');
@@ -648,6 +694,13 @@ export default function App() {
     setStudentSchool(null);
     setStudentLoading(false);
     setStudentError(null);
+    setStudentAttendance([]);
+    setStudentAttendanceSummary(null);
+    setStudentHomework([]);
+    setStudentTodayTimetable([]);
+    setStudentMarks([]);
+    setStudentReportCards([]);
+    setStudentAnnouncements([]);
     setEmail('');
     setPhone('');
     setPassword('');
@@ -797,6 +850,13 @@ export default function App() {
           loading={studentLoading}
           error={studentError}
           color={branding.primaryColor}
+          attendance={studentAttendance}
+          attendanceSummary={studentAttendanceSummary}
+          homework={studentHomework}
+          todayTimetable={studentTodayTimetable}
+          marks={studentMarks}
+          reportCards={studentReportCards}
+          announcements={studentAnnouncements}
         />
       ) : null}
     </ScrollView>
@@ -1082,24 +1142,46 @@ function StudentDashboard({
   loading,
   error,
   color,
+  attendance,
+  attendanceSummary,
+  homework,
+  todayTimetable,
+  marks,
+  reportCards,
+  announcements,
 }: {
   student: StudentUser | null;
   school: SchoolInfo | null;
   loading: boolean;
   error: string | null;
   color: string;
+  attendance: AttendanceItem[];
+  attendanceSummary: StudentAttendanceSummary | null;
+  homework: HomeworkItem[];
+  todayTimetable: TimetableItem[];
+  marks: MarkItem[];
+  reportCards: ReportCardItem[];
+  announcements: AnnouncementItem[];
 }) {
   const className = student?.section?.class?.name;
   const sectionName = student?.section?.name;
   const classSection =
     className && sectionName ? `${className} - ${sectionName}` : className || sectionName || null;
   const initial = (student?.name || 'S').trim().charAt(0).toUpperCase();
+  const hasData =
+    attendance.length > 0 ||
+    homework.length > 0 ||
+    todayTimetable.length > 0 ||
+    marks.length > 0 ||
+    reportCards.length > 0 ||
+    announcements.length > 0 ||
+    attendanceSummary !== null;
 
   return (
     <>
       {error ? (
         <View style={styles.inlineError}>
-          <Text style={styles.inlineErrorTitle}>Could not refresh student profile</Text>
+          <Text style={styles.inlineErrorTitle}>Could not refresh student data</Text>
           <Text style={styles.inlineErrorText}>{error}</Text>
         </View>
       ) : null}
@@ -1120,43 +1202,93 @@ function StudentDashboard({
         {loading ? <ActivityIndicator color={color} /> : null}
       </View>
 
-      <StudentInfoCard
-        title="Attendance Summary"
-        message="Your attendance summary will appear here once the student data service is connected."
-      />
-      <StudentInfoCard
-        title="Homework"
-        message="Assigned homework and submission status will appear here once the student data service is connected."
-      />
-      <StudentInfoCard
-        title="Today's Timetable"
-        message="Today's periods will appear here once the student data service is connected."
-      />
-      <StudentInfoCard
-        title="Recent Marks"
-        message="Your latest exam marks will appear here once the student data service is connected."
-      />
-      <StudentInfoCard
-        title="Published Report Cards"
-        message="Published report cards will appear here once the student data service is connected."
-      />
-      <StudentInfoCard
-        title="Announcements"
-        message="School announcements will appear here once the student data service is connected."
-        last
-      />
+      {loading && !hasData ? (
+        <View style={styles.loaderWrap}>
+          <ActivityIndicator size="large" color={color} />
+        </View>
+      ) : (
+        <>
+          <StudentAttendanceCard attendance={attendance} summary={attendanceSummary} color={color} />
+          <StudentHomeworkCard homework={homework} />
+          <StudentTodayTimetableCard timetable={todayTimetable} color={color} />
+          <MarksCard marks={marks} />
+          <ReportCardsCard reportCards={reportCards} />
+          <AnnouncementsCard announcements={announcements} />
+        </>
+      )}
     </>
   );
 }
 
-function StudentInfoCard({ title, message, last }: { title: string; message: string; last?: boolean }) {
+function StudentAttendanceCard({
+  attendance,
+  summary,
+  color,
+}: {
+  attendance: AttendanceItem[];
+  summary: StudentAttendanceSummary | null;
+  color: string;
+}) {
   return (
-    <View style={[styles.card, last && styles.lastCard]}>
+    <View style={styles.card}>
       <View style={styles.cardHeaderRow}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <Text style={styles.comingSoonPill}>Coming soon</Text>
+        <Text style={styles.sectionTitle}>Attendance Summary</Text>
+        {summary ? <Text style={[styles.attendancePct, { color }]}>{summary.percentage}%</Text> : null}
       </View>
-      <Text style={styles.emptyText}>{message}</Text>
+      <View style={styles.summaryRow}>
+        <Text style={styles.summaryText}>Present: {summary?.present ?? 0}</Text>
+        <Text style={styles.summaryText}>Absent: {summary?.absent ?? 0}</Text>
+        <Text style={styles.summaryText}>Late: {summary?.late ?? 0}</Text>
+      </View>
+      {attendance.slice(0, 8).map((item) => (
+        <InfoRow key={item.id} title={formatDate(item.date)} value={formatStatus(item.status)} />
+      ))}
+      {attendance.length === 0 ? <Text style={styles.emptyText}>No attendance records in the last 30 days.</Text> : null}
+    </View>
+  );
+}
+
+function StudentHomeworkCard({ homework }: { homework: HomeworkItem[] }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.sectionTitle}>Homework</Text>
+      {homework.slice(0, 8).map((item) => (
+        <View key={item.id} style={styles.homeworkRow}>
+          <View style={styles.listRowLeft}>
+            <Text style={styles.listRowTitle}>{item.title}</Text>
+            <Text style={styles.listRowSubtext}>{item.subject} · Deadline {formatDateTime(item.deadlineAt)}</Text>
+            {item.teacherRemark ? <Text style={styles.remarkText}>Remark: {item.teacherRemark}</Text> : null}
+          </View>
+          <View style={styles.homeworkMeta}>
+            <Text style={styles.statusPill}>{formatStatus(item.submissionStatus)}</Text>
+            <Text style={styles.methodPill}>{item.submissionMethod}</Text>
+            {item.score !== null && item.maxScore !== null ? (
+              <Text style={styles.listRowValue}>{item.score}/{item.maxScore}</Text>
+            ) : null}
+          </View>
+        </View>
+      ))}
+      {homework.length === 0 ? <Text style={styles.emptyText}>No homework assigned.</Text> : null}
+    </View>
+  );
+}
+
+function StudentTodayTimetableCard({ timetable, color }: { timetable: TimetableItem[]; color: string }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.sectionTitle}>Today&apos;s Timetable</Text>
+      {timetable.map((slot) => (
+        <View key={slot.id} style={styles.teacherListItem}>
+          <View style={[styles.periodBadge, { borderColor: color }]}>
+            <Text style={[styles.periodBadgeText, { color }]}>P{slot.period}</Text>
+          </View>
+          <View style={styles.teacherListBody}>
+            <Text style={styles.listRowTitle}>{slot.subject || 'Subject TBD'}</Text>
+            <Text style={styles.listRowSubtext}>{slot.teacher?.name || 'Teacher not assigned'}</Text>
+          </View>
+        </View>
+      ))}
+      {timetable.length === 0 ? <Text style={styles.emptyText}>No periods scheduled for today.</Text> : null}
     </View>
   );
 }
@@ -1246,7 +1378,7 @@ function MarksCard({ marks }: { marks: MarkItem[] }) {
   return (
     <View style={styles.card}>
       <Text style={styles.sectionTitle}>Marks</Text>
-      {marks.map((item) => <InfoRow key={item.id} title={item.exam.name} subtitle={item.exam.scheme?.name || 'Exam'} value={`${item.marks}/${item.exam.maxMarks}`} />)}
+      {marks.map((item) => <InfoRow key={item.id} title={item.exam.name} subtitle={item.exam.scheme?.name || 'Exam'} value={`${item.marks}/${item.exam.maxMarks}${item.grade ? ` · ${item.grade}` : ''}`} />)}
       {marks.length === 0 ? <Text style={styles.emptyText}>No marks published yet.</Text> : null}
     </View>
   );
@@ -1407,7 +1539,7 @@ const styles = StyleSheet.create({
   studentMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   studentMetaPill: { overflow: 'hidden', borderRadius: 999, backgroundColor: '#eef2ff', color: '#3730a3', paddingHorizontal: 9, paddingVertical: 3, fontSize: 11, fontWeight: '700' },
   studentSchool: { marginTop: 8, fontSize: 12, color: '#64748b', fontWeight: '600' },
-  comingSoonPill: { overflow: 'hidden', borderRadius: 999, backgroundColor: '#f1f5f9', color: '#64748b', paddingHorizontal: 9, paddingVertical: 3, fontSize: 10, fontWeight: '800', marginBottom: 10 },
+  attendancePct: { fontSize: 20, fontWeight: '800', marginBottom: 10 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
   overviewTile: { width: '47%', borderWidth: 1, borderColor: '#eef0f3', borderRadius: 12, padding: 12, backgroundColor: '#fbfcfe' },
   overviewNumber: { fontSize: 24, fontWeight: '800' },
