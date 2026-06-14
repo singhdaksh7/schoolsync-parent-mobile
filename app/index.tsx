@@ -102,6 +102,9 @@ type TimetableItem = {
   period: number;
   subject?: string;
   teacher?: { name?: string };
+  section?: { name?: string; class?: { name?: string } };
+  startTime?: string | null;
+  endTime?: string | null;
 };
 
 type AnnouncementItem = {
@@ -174,6 +177,8 @@ type TeacherArrangement = {
   period?: number;
   subject?: string | null;
   section?: { name?: string; class?: { name?: string } };
+  absentTeacher?: { name?: string } | null;
+  reason?: string | null;
 };
 
 type TeacherEarlyLeave = {
@@ -299,6 +304,8 @@ export default function App() {
   const [teacherArrangements, setTeacherArrangements] = useState<TeacherArrangement[]>([]);
   const [teacherEarlyLeaves, setTeacherEarlyLeaves] = useState<TeacherEarlyLeave[]>([]);
   const [teacherLoading, setTeacherLoading] = useState(false);
+  const [teacherError, setTeacherError] = useState<string | null>(null);
+  const [markingAttendance, setMarkingAttendance] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -414,7 +421,7 @@ export default function App() {
 
   async function loadTeacherDashboard(authToken: string) {
     setTeacherLoading(true);
-    setError(null);
+    setTeacherError(null);
     try {
       const [attendanceRes, timetableRes, homeworkRes, arrangementsRes, earlyLeaveRes] = await Promise.all([
         apiRequest<TeacherTodayAttendance>('/api/teacher/attendance/today', {}, authToken),
@@ -430,11 +437,7 @@ export default function App() {
       setTeacherArrangements(Array.isArray(arrangementsRes) ? arrangementsRes : arrangementsRes.arrangements || []);
       setTeacherEarlyLeaves(Array.isArray(earlyLeaveRes) ? earlyLeaveRes : earlyLeaveRes.requests || earlyLeaveRes.earlyLeaves || []);
     } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? `${loadError.message}. Staff mobile token APIs may still be pending on the backend.`
-          : 'Failed to load teacher dashboard.'
-      );
+      setTeacherError(loadError instanceof Error ? loadError.message : 'Failed to load teacher dashboard.');
     } finally {
       setTeacherLoading(false);
       setRefreshing(false);
@@ -578,12 +581,15 @@ export default function App() {
 
   async function markTeacherPresent() {
     if (!token) return;
-    setError(null);
+    setTeacherError(null);
+    setMarkingAttendance(true);
     try {
       await apiRequest('/api/teacher/attendance/mark', { method: 'POST', body: JSON.stringify({ status: 'PRESENT' }) }, token);
       await loadTeacherDashboard(token);
     } catch (markError) {
-      setError(markError instanceof Error ? markError.message : 'Failed to mark attendance.');
+      setTeacherError(markError instanceof Error ? markError.message : 'Failed to mark attendance.');
+    } finally {
+      setMarkingAttendance(false);
     }
   }
 
@@ -601,6 +607,8 @@ export default function App() {
     setTeacherHomework([]);
     setTeacherArrangements([]);
     setTeacherEarlyLeaves([]);
+    setTeacherError(null);
+    setMarkingAttendance(false);
     setEmail('');
     setPhone('');
     setPassword('');
@@ -735,6 +743,8 @@ export default function App() {
           homework={teacherHomework}
           arrangements={teacherArrangements}
           earlyLeaves={teacherEarlyLeaves}
+          error={teacherError}
+          markingAttendance={markingAttendance}
           onMarkPresent={markTeacherPresent}
           color={branding.primaryColor}
         />
@@ -847,6 +857,8 @@ function TeacherDashboard({
   homework,
   arrangements,
   earlyLeaves,
+  error,
+  markingAttendance,
   onMarkPresent,
   color,
 }: {
@@ -856,25 +868,146 @@ function TeacherDashboard({
   homework: HomeworkItem[];
   arrangements: TeacherArrangement[];
   earlyLeaves: TeacherEarlyLeave[];
+  error: string | null;
+  markingAttendance: boolean;
   onMarkPresent: () => void;
   color: string;
 }) {
   const status = attendance?.status || attendance?.attendance?.status || 'Not marked';
+  const isPresent = status === 'PRESENT';
+  const visibleHomework = homework.slice(0, 8);
+  const activeHomework = homework.filter((item) => item.homeworkStatus === 'ACTIVE').length;
+
   return (
     <>
-      {loading ? <View style={styles.loaderWrap}><ActivityIndicator size="large" color={color} /></View> : null}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Teacher Attendance</Text>
-        <Text style={styles.listRowSubtext}>Today status: {status}</Text>
-        <Pressable style={[styles.primaryButton, { backgroundColor: color }]} onPress={onMarkPresent}>
-          <Text style={styles.primaryButtonText}>Mark Present</Text>
+      <View style={styles.teacherHero}>
+        <View style={styles.teacherHeroText}>
+          <Text style={styles.teacherHeroLabel}>Today</Text>
+          <Text style={styles.teacherHeroTitle}>Teacher Dashboard</Text>
+          <Text style={styles.teacherHeroSubtext}>
+            {timetable.length} periods · {activeHomework} active homework · {arrangements.length} substitutions
+          </Text>
+        </View>
+        {loading ? <ActivityIndicator color={color} /> : null}
+      </View>
+
+      {error ? (
+        <View style={styles.inlineError}>
+          <Text style={styles.inlineErrorTitle}>Could not refresh teacher data</Text>
+          <Text style={styles.inlineErrorText}>{error}</Text>
+        </View>
+      ) : null}
+
+      <View style={[styles.card, styles.attendanceCard]}>
+        <View style={styles.cardHeaderRow}>
+          <View>
+            <Text style={styles.sectionTitle}>Attendance</Text>
+            <Text style={styles.listRowSubtext}>Today status</Text>
+          </View>
+          <Text style={[styles.statusBadge, isPresent ? styles.statusBadgeSuccess : styles.statusBadgeMuted]}>
+            {formatStatus(status)}
+          </Text>
+        </View>
+        <Pressable
+          style={[
+            styles.primaryButton,
+            { backgroundColor: isPresent ? '#94a3b8' : color },
+            (loading || markingAttendance || isPresent) && styles.primaryButtonDisabled,
+          ]}
+          onPress={onMarkPresent}
+          disabled={loading || markingAttendance || isPresent}
+        >
+          {markingAttendance ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.primaryButtonText}>{isPresent ? 'Present Marked' : 'Mark Present'}</Text>
+          )}
         </Pressable>
       </View>
-      <TimetableCard timetable={timetable} title="Today Timetable" />
-      <SimpleList title="Homework" items={homework.slice(0, 8).map((item) => ({ id: item.id, title: item.title, subtitle: `${item.subject} - ${formatDateTime(item.deadlineAt)}` }))} />
-      <SimpleList title="Arrangements" items={arrangements.map((item) => ({ id: item.id, title: item.subject || 'Arrangement', subtitle: `${item.section?.class?.name || ''}-${item.section?.name || ''} P${item.period || '-'}` }))} />
-      <SimpleList title="Early Leave Requests" items={earlyLeaves.map((item) => ({ id: item.id, title: item.status, subtitle: `${formatDate(item.date)} after P${item.leaveAfterPeriod} - ${item.reason}` }))} last />
+
+      <TeacherSection title="Today's Timetable" emptyText="No periods assigned for today.">
+        {timetable.map((slot) => (
+          <View key={slot.id} style={styles.teacherListItem}>
+            <View style={[styles.periodBadge, { borderColor: color }]}>
+              <Text style={[styles.periodBadgeText, { color }]}>P{slot.period}</Text>
+            </View>
+            <View style={styles.teacherListBody}>
+              <Text style={styles.listRowTitle}>{slot.subject || 'Subject TBD'}</Text>
+              <Text style={styles.listRowSubtext}>
+                {classSectionLabel(slot.section)}
+                {slot.startTime || slot.endTime ? ` · ${slot.startTime || ''}${slot.endTime ? `-${slot.endTime}` : ''}` : ''}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </TeacherSection>
+
+      <TeacherSection title="Homework" emptyText="No homework assigned yet.">
+        {visibleHomework.map((item) => (
+          <View key={item.id} style={styles.teacherListItem}>
+            <View style={styles.teacherListBody}>
+              <Text style={styles.listRowTitle}>{item.title}</Text>
+              <Text style={styles.listRowSubtext}>{item.subject} · Deadline {formatDateTime(item.deadlineAt)}</Text>
+              <View style={styles.teacherMetaRow}>
+                <Text style={styles.methodPill}>{formatStatus(item.submissionStatus)}</Text>
+                <Text style={styles.statusPill}>{item.homeworkStatus}</Text>
+              </View>
+            </View>
+          </View>
+        ))}
+      </TeacherSection>
+
+      <TeacherSection title="Arrangements / Substitutions" emptyText="No substitutions assigned.">
+        {arrangements.map((item) => (
+          <View key={item.id} style={styles.teacherListItem}>
+            <View style={[styles.periodBadge, { borderColor: color }]}>
+              <Text style={[styles.periodBadgeText, { color }]}>P{item.period || '-'}</Text>
+            </View>
+            <View style={styles.teacherListBody}>
+              <Text style={styles.listRowTitle}>{item.subject || 'Substitution'}</Text>
+              <Text style={styles.listRowSubtext}>{classSectionLabel(item.section)}</Text>
+              {item.absentTeacher?.name ? <Text style={styles.remarkText}>For {item.absentTeacher.name}</Text> : null}
+              {item.reason ? <Text style={styles.remarkText}>{item.reason}</Text> : null}
+            </View>
+          </View>
+        ))}
+      </TeacherSection>
+
+      <TeacherSection title="Early Leave Requests" emptyText="No early leave requests." last>
+        {earlyLeaves.map((item) => (
+          <View key={item.id} style={styles.teacherListItem}>
+            <View style={styles.teacherListBody}>
+              <View style={styles.cardHeaderRow}>
+                <Text style={styles.listRowTitle}>{formatStatus(item.status)}</Text>
+                <Text style={styles.listRowValue}>After P{item.leaveAfterPeriod}</Text>
+              </View>
+              <Text style={styles.listRowSubtext}>{formatDate(item.date)}</Text>
+              <Text style={styles.remarkText}>{item.reason}</Text>
+            </View>
+          </View>
+        ))}
+      </TeacherSection>
     </>
+  );
+}
+
+function TeacherSection({
+  title,
+  emptyText,
+  children,
+  last,
+}: {
+  title: string;
+  emptyText: string;
+  children: React.ReactNode;
+  last?: boolean;
+}) {
+  const childArray = React.Children.toArray(children);
+  return (
+    <View style={[styles.card, last && styles.lastCard]}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {childArray.length > 0 ? childArray : <Text style={styles.emptyText}>{emptyText}</Text>}
+    </View>
   );
 }
 
@@ -1032,16 +1165,6 @@ function AnnouncementsCard({ announcements }: { announcements: AnnouncementItem[
   );
 }
 
-function SimpleList({ title, items, last }: { title: string; items: { id: string; title: string; subtitle?: string }[]; last?: boolean }) {
-  return (
-    <View style={[styles.card, last && styles.lastCard]}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {items.map((item) => <InfoRow key={item.id} title={item.title} subtitle={item.subtitle} />)}
-      {items.length === 0 ? <Text style={styles.emptyText}>No {title.toLowerCase()}.</Text> : null}
-    </View>
-  );
-}
-
 function InfoRow({ title, subtitle, value }: { title: string; subtitle?: string; value?: string }) {
   return (
     <View style={styles.listRow}>
@@ -1052,6 +1175,21 @@ function InfoRow({ title, subtitle, value }: { title: string; subtitle?: string;
       {value ? <Text style={styles.listRowValue}>{value}</Text> : null}
     </View>
   );
+}
+
+function classSectionLabel(section?: { name?: string; class?: { name?: string } }) {
+  if (section?.class?.name && section.name) return `${section.class.name}-${section.name}`;
+  if (section?.class?.name) return section.class.name;
+  if (section?.name) return section.name;
+  return 'Section not assigned';
+}
+
+function formatStatus(status: string) {
+  return status
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 function roleLabel(role?: string) {
@@ -1078,6 +1216,7 @@ const styles = StyleSheet.create({
   rolePill: { overflow: 'hidden', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)', color: '#fff', paddingHorizontal: 10, paddingVertical: 5, fontSize: 12, fontWeight: '700' },
   card: { backgroundColor: '#fff', borderRadius: 14, marginHorizontal: 14, marginTop: 14, padding: 14, borderWidth: 1, borderColor: '#e8e8e8' },
   lastCard: { marginBottom: 24 },
+  attendanceCard: { gap: 12 },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#222', marginBottom: 10 },
   label: { fontSize: 14, fontWeight: '600', color: '#222', marginBottom: 6 },
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: '#222', marginBottom: 12, backgroundColor: '#fff' },
@@ -1090,6 +1229,9 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   errorText: { color: '#d32f2f', marginBottom: 10, fontSize: 13 },
   errorBanner: { backgroundColor: '#ffebee', color: '#b71c1c', marginHorizontal: 14, marginTop: 14, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13 },
+  inlineError: { backgroundColor: '#fff1f2', borderWidth: 1, borderColor: '#fecdd3', marginHorizontal: 14, marginTop: 14, borderRadius: 12, padding: 12 },
+  inlineErrorTitle: { color: '#9f1239', fontSize: 14, fontWeight: '800' },
+  inlineErrorText: { color: '#be123c', fontSize: 12, lineHeight: 17, marginTop: 4 },
   infoBox: { backgroundColor: '#eef6ff', color: '#1d4f8f', padding: 10, borderRadius: 10, fontSize: 12, lineHeight: 17, marginBottom: 12 },
   logoutButton: { backgroundColor: 'rgba(0,0,0,0.18)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
   logoutButtonText: { color: '#fff', fontWeight: '600', fontSize: 13 },
@@ -1098,6 +1240,7 @@ const styles = StyleSheet.create({
   childChipSubtext: { marginTop: 4, fontSize: 12, color: '#596779' },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, gap: 8 },
   summaryText: { fontSize: 13, fontWeight: '600', color: '#333' },
+  cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   listRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   listRowLeft: { flexShrink: 1, paddingRight: 10 },
   listRowTitle: { fontSize: 14, fontWeight: '600', color: '#222' },
@@ -1108,6 +1251,9 @@ const styles = StyleSheet.create({
   homeworkMeta: { alignItems: 'flex-end', gap: 6 },
   statusPill: { overflow: 'hidden', borderRadius: 999, backgroundColor: '#e9f2ff', color: '#0d47a1', paddingHorizontal: 8, paddingVertical: 3, fontSize: 10, fontWeight: '700' },
   methodPill: { overflow: 'hidden', borderRadius: 999, backgroundColor: '#f3f4f6', color: '#374151', paddingHorizontal: 8, paddingVertical: 3, fontSize: 10, fontWeight: '700' },
+  statusBadge: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, fontSize: 12, fontWeight: '800' },
+  statusBadgeSuccess: { backgroundColor: '#dcfce7', color: '#166534' },
+  statusBadgeMuted: { backgroundColor: '#f1f5f9', color: '#475569' },
   remarkText: { marginTop: 5, fontSize: 12, lineHeight: 16, color: '#4b5563' },
   submitWrap: { marginTop: 10, flexDirection: 'row', gap: 8, alignItems: 'center' },
   submitInput: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, color: '#222', backgroundColor: '#fff' },
@@ -1119,6 +1265,16 @@ const styles = StyleSheet.create({
   announcementMeta: { marginTop: 8, fontSize: 12, color: '#666' },
   emptyText: { color: '#666', fontSize: 13, lineHeight: 19 },
   loaderWrap: { paddingVertical: 40 },
+  teacherHero: { marginHorizontal: 14, marginTop: 14, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#e2e8f0', backgroundColor: '#ffffff', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  teacherHeroText: { flex: 1 },
+  teacherHeroLabel: { color: '#64748b', fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+  teacherHeroTitle: { color: '#0f172a', fontSize: 20, fontWeight: '800', marginTop: 3 },
+  teacherHeroSubtext: { color: '#475569', fontSize: 12, lineHeight: 17, marginTop: 5 },
+  teacherListItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  teacherListBody: { flex: 1 },
+  teacherMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  periodBadge: { minWidth: 38, borderRadius: 10, borderWidth: 1, paddingVertical: 7, paddingHorizontal: 8, alignItems: 'center', backgroundColor: '#f8fafc' },
+  periodBadgeText: { fontSize: 12, fontWeight: '800' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
   overviewTile: { width: '47%', borderWidth: 1, borderColor: '#eef0f3', borderRadius: 12, padding: 12, backgroundColor: '#fbfcfe' },
   overviewNumber: { fontSize: 24, fontWeight: '800' },
