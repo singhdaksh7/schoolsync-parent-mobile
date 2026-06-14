@@ -56,6 +56,22 @@ type MarkItem = {
   };
 };
 
+type ReportCardItem = {
+  id: string;
+  status: 'PUBLISHED';
+  totalMarks: number;
+  percentage: number;
+  grade: string;
+  publishedAt: string | null;
+  student: {
+    name: string;
+    rollNo: string;
+  };
+  examScheme: {
+    name: string;
+  };
+};
+
 type TimetableItem = {
   id: string;
   dayOfWeek: number;
@@ -203,6 +219,7 @@ export default function App() {
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [attendance, setAttendance] = useState<AttendanceItem[]>([]);
   const [marks, setMarks] = useState<MarkItem[]>([]);
+  const [reportCards, setReportCards] = useState<ReportCardItem[]>([]);
   const [timetable, setTimetable] = useState<TimetableItem[]>([]);
   const [homework, setHomework] = useState<HomeworkItem[]>([]);
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
@@ -228,13 +245,18 @@ export default function App() {
 
   async function loadStudentData(authToken: string, studentId: string) {
     const query = `?studentId=${encodeURIComponent(studentId)}`;
-    const [attendanceRes, marksRes, timetableRes, homeworkRes] = await Promise.all([
+    const [attendanceRes, marksRes, reportCardsRes, timetableRes, homeworkRes] = await Promise.all([
       apiRequest<{ attendance: AttendanceItem[] }>(
         `/api/parent/attendance${query}`,
         {},
         authToken
       ),
       apiRequest<{ marks: MarkItem[] }>(`/api/parent/marks${query}`, {}, authToken),
+      apiRequest<{ reportCards: ReportCardItem[] }>(
+        `/api/parent/report-cards${query}`,
+        {},
+        authToken
+      ),
       apiRequest<{ timetable: TimetableItem[] }>(
         `/api/parent/timetable${query}`,
         {},
@@ -249,6 +271,7 @@ export default function App() {
 
     setAttendance(attendanceRes.attendance || []);
     setMarks(marksRes.marks || []);
+    setReportCards(reportCardsRes.reportCards || []);
     setTimetable(timetableRes.timetable || []);
     setHomework(homeworkRes.homework || []);
   }
@@ -283,6 +306,7 @@ export default function App() {
       } else {
         setAttendance([]);
         setMarks([]);
+        setReportCards([]);
         setTimetable([]);
         setHomework([]);
       }
@@ -397,6 +421,7 @@ export default function App() {
     setSelectedStudentId(null);
     setAttendance([]);
     setMarks([]);
+    setReportCards([]);
     setTimetable([]);
     setHomework([]);
     setAnnouncements([]);
@@ -630,6 +655,27 @@ export default function App() {
               </View>
             ))}
             {marks.length === 0 ? <Text style={styles.emptyText}>No marks published yet.</Text> : null}
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Published Report Cards</Text>
+            {reportCards.map((item) => (
+              <View key={item.id} style={styles.listRow}>
+                <View style={styles.listRowLeft}>
+                  <Text style={styles.listRowTitle}>{item.examScheme.name}</Text>
+                  <Text style={styles.listRowSubtext}>
+                    {item.student.name} • Roll {item.student.rollNo}
+                    {item.publishedAt ? ` • ${formatDate(item.publishedAt)}` : ''}
+                  </Text>
+                </View>
+                <Text style={styles.listRowValue}>
+                  {item.percentage}% • {item.grade}
+                </Text>
+              </View>
+            ))}
+            {reportCards.length === 0 ? (
+              <Text style={styles.emptyText}>No published report cards yet.</Text>
+            ) : null}
           </View>
 
           <View style={styles.card}>
