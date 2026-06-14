@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -10,31 +12,64 @@ import {
   View,
 } from 'react-native';
 
-type ParentUser = {
+type AppRole = 'SCHOOL_OWNER' | 'SCHOOL_ADMIN' | 'VICE_PRINCIPAL' | 'TEACHER' | 'PARENT' | 'GUARDIAN' | 'STUDENT';
+type LoginMode = 'STAFF' | 'PARENT' | 'STUDENT';
+
+type AppUser = {
   id: string;
   name: string;
-  email: string;
+  email?: string | null;
   phone?: string;
-  role: string;
+  role: AppRole | string;
   schoolId?: string;
   schoolSlug?: string;
 };
 
 type LoginResponse = {
   token: string;
-  user: ParentUser;
+  role?: string;
+  user: AppUser;
+  student?: StudentUser;
+  school?: SchoolInfo;
+};
+
+type StudentUser = {
+  id: string;
+  name: string;
+  rollNo: string;
+  admissionNo?: string | null;
+  email?: string | null;
+  schoolId?: string;
+};
+
+type SchoolInfo = {
+  id?: string;
+  name?: string;
+  slug?: string;
+  logoUrl?: string | null;
+};
+
+type MobileMeResponse = {
+  role: string;
+  user?: AppUser;
+  student?: StudentUser;
+  school?: SchoolInfo;
+};
+
+type Branding = {
+  schoolName: string;
+  logoUrl: string | null;
+  primaryColor: string;
+  secondaryColor: string;
+  appName: string;
+  poweredBySchoolSync: boolean;
 };
 
 type Child = {
   id: string;
   name: string;
   rollNo: string;
-  section?: {
-    name?: string;
-    class?: {
-      name?: string;
-    };
-  };
+  section?: { name?: string; class?: { name?: string } };
 };
 
 type AttendanceItem = {
@@ -47,13 +82,7 @@ type AttendanceItem = {
 type MarkItem = {
   id: string;
   marks: number;
-  exam: {
-    name: string;
-    maxMarks: number;
-    scheme?: {
-      name: string;
-    };
-  };
+  exam: { name: string; maxMarks: number; scheme?: { name: string } };
 };
 
 type ReportCardItem = {
@@ -63,13 +92,8 @@ type ReportCardItem = {
   percentage: number;
   grade: string;
   publishedAt: string | null;
-  student: {
-    name: string;
-    rollNo: string;
-  };
-  examScheme: {
-    name: string;
-  };
+  student: { name: string; rollNo: string };
+  examScheme: { name: string };
 };
 
 type TimetableItem = {
@@ -77,9 +101,7 @@ type TimetableItem = {
   dayOfWeek: number;
   period: number;
   subject?: string;
-  teacher?: {
-    name?: string;
-  };
+  teacher?: { name?: string };
 };
 
 type AnnouncementItem = {
@@ -87,10 +109,7 @@ type AnnouncementItem = {
   title: string;
   body: string;
   publishedAt: string;
-  createdBy?: {
-    name?: string;
-    role?: string;
-  };
+  createdBy?: { name?: string; role?: string };
 };
 
 type HomeworkItem = {
@@ -126,9 +145,7 @@ type HomeworkItem = {
     submissionMethod: HomeworkItem['submissionMethod'];
     checkedAt: string | null;
   } | null;
-  teacher?: {
-    name?: string;
-  };
+  teacher?: { name?: string };
 };
 
 type PendingFeeItem = {
@@ -136,12 +153,7 @@ type PendingFeeItem = {
     id: string;
     name: string;
     rollNo: string;
-    section?: {
-      name?: string;
-      class?: {
-        name?: string;
-      };
-    };
+    section?: { name?: string; class?: { name?: string } };
   };
   feeStructure: {
     id: string;
@@ -149,6 +161,36 @@ type PendingFeeItem = {
     amount: number;
     frequency: string;
   };
+};
+
+type TeacherTodayAttendance = {
+  status?: 'PRESENT' | 'ABSENT' | 'LATE' | null;
+  attendance?: { status?: 'PRESENT' | 'ABSENT' | 'LATE' } | null;
+};
+
+type TeacherArrangement = {
+  id: string;
+  date?: string;
+  period?: number;
+  subject?: string | null;
+  section?: { name?: string; class?: { name?: string } };
+};
+
+type TeacherEarlyLeave = {
+  id: string;
+  date: string;
+  leaveAfterPeriod: number;
+  reason: string;
+  status: string;
+};
+
+const DEFAULT_BRANDING: Branding = {
+  schoolName: 'SchoolSync',
+  logoUrl: null,
+  primaryColor: '#1976D2',
+  secondaryColor: '#0f172a',
+  appName: 'SchoolSync',
+  poweredBySchoolSync: false,
 };
 
 const DAY_NAMES: Record<number, string> = {
@@ -165,38 +207,24 @@ const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL || '').trim().replace(/\/$
 const API_CONFIG_ERROR = API_BASE_URL
   ? null
   : 'Backend API URL is not configured. Set EXPO_PUBLIC_API_URL before running the app.';
+const SESSION_STORAGE_KEY = 'schoolsync.mobile.session.v1';
 
 function ensureApiBaseUrl() {
-  if (!API_BASE_URL) {
-    throw new Error(API_CONFIG_ERROR || 'Backend API URL is not configured.');
-  }
+  if (!API_BASE_URL) throw new Error(API_CONFIG_ERROR || 'Backend API URL is not configured.');
   return API_BASE_URL;
 }
 
-async function apiRequest<T>(
-  path: string,
-  options: RequestInit = {},
-  token?: string
-): Promise<T> {
+async function apiRequest<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(`${ensureApiBaseUrl()}${path}`, {
-    ...options,
-    headers,
-  });
-
+  const response = await fetch(`${ensureApiBaseUrl()}${path}`, { ...options, headers });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload.error || `Request failed (${response.status})`);
-  }
-
+  if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
   return payload as T;
 }
 
@@ -210,11 +238,47 @@ function formatDateTime(isoDate: string) {
   return Number.isNaN(date.getTime()) ? isoDate : date.toLocaleString();
 }
 
+function isAdminRole(role?: string) {
+  return role === 'SCHOOL_OWNER' || role === 'SCHOOL_ADMIN' || role === 'VICE_PRINCIPAL';
+}
+
+function normalizeRole(role?: string) {
+  if (role === 'GUARDIAN') return 'PARENT';
+  return role || 'PARENT';
+}
+
+function userFromMobileMe(response: MobileMeResponse): AppUser {
+  if (response.role === 'STUDENT' && response.student) {
+    return {
+      id: response.student.id,
+      name: response.student.name,
+      email: response.student.email,
+      role: 'STUDENT',
+      schoolId: response.student.schoolId,
+    };
+  }
+
+  if (response.user) return { ...response.user, role: normalizeRole(response.user.role) };
+  return { id: 'mobile-user', name: 'SchoolSync User', role: normalizeRole(response.role) };
+}
+
+async function persistSession(token: string, user: AppUser) {
+  await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ token, user }));
+}
+
 export default function App() {
+  const [branding, setBranding] = useState<Branding>(DEFAULT_BRANDING);
+  const [loginMode, setLoginMode] = useState<LoginMode>('PARENT');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<ParentUser | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [loadingLogin, setLoadingLogin] = useState(false);
+  const [loadingBranding, setLoadingBranding] = useState(false);
+  const [restoringSession, setRestoringSession] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [attendance, setAttendance] = useState<AttendanceItem[]>([]);
@@ -224,12 +288,66 @@ export default function App() {
   const [homework, setHomework] = useState<HomeworkItem[]>([]);
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
   const [pendingFees, setPendingFees] = useState<PendingFeeItem[]>([]);
-  const [loadingLogin, setLoadingLogin] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [submittingHomeworkId, setSubmittingHomeworkId] = useState<string | null>(null);
   const [submissionUrls, setSubmissionUrls] = useState<Record<string, string>>({});
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const [teacherAttendance, setTeacherAttendance] = useState<TeacherTodayAttendance | null>(null);
+  const [teacherTimetable, setTeacherTimetable] = useState<TimetableItem[]>([]);
+  const [teacherHomework, setTeacherHomework] = useState<HomeworkItem[]>([]);
+  const [teacherArrangements, setTeacherArrangements] = useState<TeacherArrangement[]>([]);
+  const [teacherEarlyLeaves, setTeacherEarlyLeaves] = useState<TeacherEarlyLeave[]>([]);
+  const [teacherLoading, setTeacherLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setLoadingBranding(true);
+    apiRequest<Branding>('/api/branding')
+      .then((data) => {
+        if (active) setBranding({ ...DEFAULT_BRANDING, ...data });
+      })
+      .catch(() => {
+        if (active) setBranding(DEFAULT_BRANDING);
+      })
+      .finally(() => {
+        if (active) setLoadingBranding(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function restoreSession() {
+      try {
+        const stored = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
+        if (!stored) return;
+        const parsed = JSON.parse(stored) as { token?: string };
+        if (!parsed.token) return;
+        const me = await apiRequest<MobileMeResponse>('/api/mobile/me', {}, parsed.token);
+        if (!active) return;
+        const restoredUser = userFromMobileMe(me);
+        setToken(parsed.token);
+        setUser(restoredUser);
+        const restoredRole = normalizeRole(restoredUser.role);
+        if (restoredRole === 'PARENT') await loadParentDashboard(parsed.token, null);
+        if (restoredRole === 'TEACHER') await loadTeacherDashboard(parsed.token);
+      } catch {
+        await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+      } finally {
+        if (active) setRestoringSession(false);
+      }
+    }
+
+    restoreSession();
+    return () => {
+      active = false;
+    };
+    // Restore should run once at app startup; dashboard loaders are intentionally invoked from the restored token.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const attendanceSummary = useMemo(() => {
     return attendance.reduce(
@@ -246,27 +364,11 @@ export default function App() {
   async function loadStudentData(authToken: string, studentId: string) {
     const query = `?studentId=${encodeURIComponent(studentId)}`;
     const [attendanceRes, marksRes, reportCardsRes, timetableRes, homeworkRes] = await Promise.all([
-      apiRequest<{ attendance: AttendanceItem[] }>(
-        `/api/parent/attendance${query}`,
-        {},
-        authToken
-      ),
+      apiRequest<{ attendance: AttendanceItem[] }>(`/api/parent/attendance${query}`, {}, authToken),
       apiRequest<{ marks: MarkItem[] }>(`/api/parent/marks${query}`, {}, authToken),
-      apiRequest<{ reportCards: ReportCardItem[] }>(
-        `/api/parent/report-cards${query}`,
-        {},
-        authToken
-      ),
-      apiRequest<{ timetable: TimetableItem[] }>(
-        `/api/parent/timetable${query}`,
-        {},
-        authToken
-      ),
-      apiRequest<{ homework: HomeworkItem[] }>(
-        `/api/parent/homework${query}`,
-        {},
-        authToken
-      ),
+      apiRequest<{ reportCards: ReportCardItem[] }>(`/api/parent/report-cards${query}`, {}, authToken),
+      apiRequest<{ timetable: TimetableItem[] }>(`/api/parent/timetable${query}`, {}, authToken),
+      apiRequest<{ homework: HomeworkItem[] }>(`/api/parent/homework${query}`, {}, authToken),
     ]);
 
     setAttendance(attendanceRes.attendance || []);
@@ -276,17 +378,13 @@ export default function App() {
     setHomework(homeworkRes.homework || []);
   }
 
-  async function loadDashboard(authToken: string, preferredStudentId?: string | null) {
+  async function loadParentDashboard(authToken: string, preferredStudentId?: string | null) {
     setLoadingData(true);
     setError(null);
     try {
       const [childrenRes, announcementsRes, feesRes] = await Promise.all([
         apiRequest<{ children: Child[] }>('/api/parent/children', {}, authToken),
-        apiRequest<{ announcements: AnnouncementItem[] }>(
-          '/api/parent/announcements',
-          {},
-          authToken
-        ),
+        apiRequest<{ announcements: AnnouncementItem[] }>('/api/parent/announcements', {}, authToken),
         apiRequest<{ pendingFees: PendingFeeItem[] }>('/api/parent/fees', {}, authToken),
       ]);
 
@@ -304,35 +402,104 @@ export default function App() {
       if (defaultStudentId) {
         await loadStudentData(authToken, defaultStudentId);
       } else {
-        setAttendance([]);
-        setMarks([]);
-        setReportCards([]);
-        setTimetable([]);
-        setHomework([]);
+        clearStudentData();
       }
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Failed to load dashboard.');
     } finally {
       setLoadingData(false);
       setRefreshing(false);
     }
   }
 
-  async function handleLogin() {
-    if (!phone.trim() || !password.trim()) {
-      setError('Please enter phone and password.');
-      return;
-    }
-
-    setLoadingLogin(true);
+  async function loadTeacherDashboard(authToken: string) {
+    setTeacherLoading(true);
     setError(null);
     try {
-      const loginRes = await apiRequest<LoginResponse>('/api/parent/login', {
-        method: 'POST',
-        body: JSON.stringify({ phone: phone.trim(), password }),
-      });
+      const [attendanceRes, timetableRes, homeworkRes, arrangementsRes, earlyLeaveRes] = await Promise.all([
+        apiRequest<TeacherTodayAttendance>('/api/teacher/attendance/today', {}, authToken),
+        apiRequest<{ timetable?: TimetableItem[]; slots?: TimetableItem[]; teachingSections?: unknown[] }>('/api/teacher/timetable', {}, authToken),
+        apiRequest<{ homework?: HomeworkItem[] }>('/api/teacher/homework', {}, authToken),
+        apiRequest<TeacherArrangement[] | { arrangements?: TeacherArrangement[] }>('/api/teacher/arrangements', {}, authToken),
+        apiRequest<TeacherEarlyLeave[] | { requests?: TeacherEarlyLeave[]; earlyLeaves?: TeacherEarlyLeave[] }>('/api/teacher/early-leave', {}, authToken),
+      ]);
 
-      setToken(loginRes.token);
-      setUser(loginRes.user);
-      await loadDashboard(loginRes.token, null);
+      setTeacherAttendance(attendanceRes);
+      setTeacherTimetable(timetableRes.timetable || timetableRes.slots || []);
+      setTeacherHomework(homeworkRes.homework || []);
+      setTeacherArrangements(Array.isArray(arrangementsRes) ? arrangementsRes : arrangementsRes.arrangements || []);
+      setTeacherEarlyLeaves(Array.isArray(earlyLeaveRes) ? earlyLeaveRes : earlyLeaveRes.requests || earlyLeaveRes.earlyLeaves || []);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? `${loadError.message}. Staff mobile token APIs may still be pending on the backend.`
+          : 'Failed to load teacher dashboard.'
+      );
+    } finally {
+      setTeacherLoading(false);
+      setRefreshing(false);
+    }
+  }
+
+  function clearStudentData() {
+    setAttendance([]);
+    setMarks([]);
+    setReportCards([]);
+    setTimetable([]);
+    setHomework([]);
+  }
+
+  async function handleLogin() {
+    setError(null);
+    setLoadingLogin(true);
+    try {
+      if (loginMode === 'PARENT') {
+        if (!phone.trim() || !password.trim()) throw new Error('Please enter phone and password.');
+        const loginRes = await apiRequest<LoginResponse>('/api/parent/login', {
+          method: 'POST',
+          body: JSON.stringify({ phone: phone.trim(), password }),
+        });
+        const nextUser = { ...loginRes.user, role: normalizeRole(loginRes.user.role) };
+        setToken(loginRes.token);
+        setUser(nextUser);
+        await persistSession(loginRes.token, nextUser);
+        await loadParentDashboard(loginRes.token, null);
+        return;
+      }
+
+      if (loginMode === 'STAFF') {
+        if (!email.trim() || !password.trim()) throw new Error('Please enter email and password.');
+        const loginRes = await apiRequest<LoginResponse>('/api/mobile/staff/login', {
+          method: 'POST',
+          body: JSON.stringify({ email: email.trim(), password }),
+        });
+        const nextUser = { ...loginRes.user, role: normalizeRole(loginRes.user.role) };
+        setToken(loginRes.token);
+        setUser(nextUser);
+        await persistSession(loginRes.token, nextUser);
+        if (nextUser.role === 'TEACHER') await loadTeacherDashboard(loginRes.token);
+        return;
+      }
+
+      if (loginMode === 'STUDENT') {
+        if (!email.trim() || !password.trim()) throw new Error('Please enter admission number/email and password.');
+        const loginRes = await apiRequest<LoginResponse>('/api/mobile/student/login', {
+          method: 'POST',
+          body: JSON.stringify({ admissionNo: email.trim(), email: email.trim(), password }),
+        });
+        const student = loginRes.student;
+        if (!student) throw new Error('Invalid credentials');
+        const nextUser: AppUser = {
+          id: student.id,
+          name: student.name,
+          email: student.email,
+          role: 'STUDENT',
+          schoolId: student.schoolId,
+        };
+        setToken(loginRes.token);
+        setUser(nextUser);
+        await persistSession(loginRes.token, nextUser);
+      }
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : 'Login failed.');
     } finally {
@@ -355,9 +522,12 @@ export default function App() {
   }
 
   async function handleRefresh() {
-    if (!token) return;
+    if (!token || !user) return;
     setRefreshing(true);
-    await loadDashboard(token, selectedStudentId);
+    const role = normalizeRole(user.role);
+    if (role === 'PARENT') await loadParentDashboard(token, selectedStudentId);
+    else if (role === 'TEACHER') await loadTeacherDashboard(token);
+    else setRefreshing(false);
   }
 
   async function handleCreateFeeOrder(fee: PendingFeeItem) {
@@ -368,10 +538,7 @@ export default function App() {
         '/api/parent/fees/create-order',
         {
           method: 'POST',
-          body: JSON.stringify({
-            studentId: fee.student.id,
-            feeStructureId: fee.feeStructure.id,
-          }),
+          body: JSON.stringify({ studentId: fee.student.id, feeStructureId: fee.feeStructure.id }),
         },
         token
       );
@@ -396,17 +563,12 @@ export default function App() {
         `/api/parent/homework/${item.homeworkId}/submit`,
         {
           method: 'POST',
-          body: JSON.stringify({
-            studentId: item.studentId,
-            attachmentUrl,
-          }),
+          body: JSON.stringify({ studentId: item.studentId, attachmentUrl }),
         },
         token
       );
       setSubmissionUrls((prev) => ({ ...prev, [item.id]: '' }));
-      if (selectedStudentId) {
-        await loadStudentData(token, selectedStudentId);
-      }
+      if (selectedStudentId) await loadStudentData(token, selectedStudentId);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Failed to submit homework.');
     } finally {
@@ -414,72 +576,113 @@ export default function App() {
     }
   }
 
+  async function markTeacherPresent() {
+    if (!token) return;
+    setError(null);
+    try {
+      await apiRequest('/api/teacher/attendance/mark', { method: 'POST', body: JSON.stringify({ status: 'PRESENT' }) }, token);
+      await loadTeacherDashboard(token);
+    } catch (markError) {
+      setError(markError instanceof Error ? markError.message : 'Failed to mark attendance.');
+    }
+  }
+
   function handleLogout() {
+    AsyncStorage.removeItem(SESSION_STORAGE_KEY).catch(() => undefined);
     setToken(null);
     setUser(null);
     setChildren([]);
     setSelectedStudentId(null);
-    setAttendance([]);
-    setMarks([]);
-    setReportCards([]);
-    setTimetable([]);
-    setHomework([]);
+    clearStudentData();
     setAnnouncements([]);
     setPendingFees([]);
+    setTeacherAttendance(null);
+    setTeacherTimetable([]);
+    setTeacherHomework([]);
+    setTeacherArrangements([]);
+    setTeacherEarlyLeaves([]);
+    setEmail('');
     setPhone('');
     setPassword('');
     setError(null);
   }
 
-  if (!token || !user) {
+  const role = normalizeRole(user?.role);
+  const theme = { backgroundColor: branding.primaryColor || DEFAULT_BRANDING.primaryColor };
+
+  if (restoringSession) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>SchoolSync Parent</Text>
-          <Text style={styles.subtitle}>Login to view your child information</Text>
+        <View style={[styles.header, theme]}>
+          <BrandHeader branding={branding} loading={loadingBranding} />
+        </View>
+        <View style={styles.loaderWrap}>
+          <ActivityIndicator size="large" color={branding.primaryColor} />
+        </View>
+      </View>
+    );
+  }
+
+  if (!token || !user) {
+    return (
+      <ScrollView style={styles.container}>
+        <View style={[styles.header, theme]}>
+          <BrandHeader branding={branding} loading={loadingBranding} />
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.label}>Guardian Phone</Text>
-          <TextInput
-            autoCapitalize="none"
-            keyboardType="phone-pad"
-            placeholder="+91 98765 43210"
-            placeholderTextColor="#8a8a8a"
-            style={styles.input}
-            value={phone}
-            onChangeText={setPhone}
+          <Text style={styles.sectionTitle}>Login</Text>
+          <Segmented
+            value={loginMode}
+            options={[
+              { value: 'STAFF', label: 'Staff' },
+              { value: 'PARENT', label: 'Parent' },
+              { value: 'STUDENT', label: 'Student' },
+            ]}
+            onChange={setLoginMode}
+            color={branding.primaryColor}
           />
 
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            secureTextEntry
-            placeholder="Enter guardian password"
-            placeholderTextColor="#8a8a8a"
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-          />
+          {loginMode === 'STAFF' ? (
+            <>
+              <Text style={styles.label}>Staff Email</Text>
+              <TextInput autoCapitalize="none" keyboardType="email-address" placeholder="admin@school.edu" placeholderTextColor="#8a8a8a" style={styles.input} value={email} onChangeText={setEmail} />
+            </>
+          ) : null}
+
+          {loginMode === 'PARENT' ? (
+            <>
+              <Text style={styles.label}>Guardian Phone</Text>
+              <TextInput autoCapitalize="none" keyboardType="phone-pad" placeholder="+91 98765 43210" placeholderTextColor="#8a8a8a" style={styles.input} value={phone} onChangeText={setPhone} />
+            </>
+          ) : null}
+
+          {loginMode === 'STUDENT' ? (
+            <>
+              <Text style={styles.label}>Admission No or Email</Text>
+              <TextInput autoCapitalize="none" placeholder="Admission number or email" placeholderTextColor="#8a8a8a" style={styles.input} value={email} onChangeText={setEmail} />
+            </>
+          ) : null}
+
+          {loginMode === 'STUDENT' || loginMode === 'STAFF' || loginMode === 'PARENT' ? (
+            <>
+              <Text style={styles.label}>Password</Text>
+              <TextInput secureTextEntry placeholder="Enter password" placeholderTextColor="#8a8a8a" style={styles.input} value={password} onChangeText={setPassword} />
+            </>
+          ) : null}
 
           {API_CONFIG_ERROR ? <Text style={styles.errorText}>{API_CONFIG_ERROR}</Text> : null}
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           <Pressable
-            style={[styles.primaryButton, API_CONFIG_ERROR && styles.primaryButtonDisabled]}
+            style={[styles.primaryButton, theme, API_CONFIG_ERROR && styles.primaryButtonDisabled]}
             onPress={handleLogin}
             disabled={loadingLogin || Boolean(API_CONFIG_ERROR)}
           >
-            {loadingLogin ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Login</Text>
-            )}
+            {loadingLogin ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Login</Text>}
           </Pressable>
-          <Text style={styles.helperText}>
-            Login with the guardian phone number and password shared by the school.
-          </Text>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -488,502 +691,436 @@ export default function App() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>SchoolSync Parent</Text>
+      <View style={[styles.header, theme]}>
+        <Text style={styles.title}>{branding.appName}</Text>
         <Text style={styles.subtitle}>Welcome, {user.name}</Text>
-        <Pressable style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Logout</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Text style={styles.rolePill}>{roleLabel(role)}</Text>
+          <Pressable style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutButtonText}>Logout</Text>
+          </Pressable>
+        </View>
       </View>
 
       {error ? <Text style={styles.errorBanner}>{error}</Text> : null}
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Children</Text>
-        {children.length === 0 ? (
-          <Text style={styles.emptyText}>No linked students found for this account.</Text>
-        ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {children.map((child) => {
-              const isSelected = selectedStudentId === child.id;
-              return (
-                <Pressable
-                  key={child.id}
-                  style={[styles.childChip, isSelected && styles.childChipSelected]}
-                  onPress={() => handleChildChange(child.id)}
-                >
-                  <Text style={[styles.childChipText, isSelected && styles.childChipTextSelected]}>
-                    {child.name}
-                  </Text>
-                  <Text style={styles.childChipSubtext}>
-                    Roll {child.rollNo}
-                    {child.section?.class?.name && child.section?.name
-                      ? ` • ${child.section.class.name}-${child.section.name}`
-                      : ''}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        )}
-      </View>
+      {role === 'PARENT' ? (
+        <ParentDashboard
+          students={children}
+          selectedStudentId={selectedStudentId}
+          loadingData={loadingData}
+          attendance={attendance}
+          attendanceSummary={attendanceSummary}
+          marks={marks}
+          reportCards={reportCards}
+          timetable={timetable}
+          homework={homework}
+          announcements={announcements}
+          pendingFees={pendingFees}
+          submittingHomeworkId={submittingHomeworkId}
+          submissionUrls={submissionUrls}
+          setSubmissionUrls={setSubmissionUrls}
+          onChildChange={handleChildChange}
+          onCreateFeeOrder={handleCreateFeeOrder}
+          onSubmitHomework={handleSubmitHomework}
+          color={branding.primaryColor}
+        />
+      ) : null}
 
-      {loadingData ? (
-        <View style={styles.loaderWrap}>
-          <ActivityIndicator size="large" color="#1976D2" />
-        </View>
-      ) : (
-        <>
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Pending Fees</Text>
-            {pendingFees.slice(0, 6).map((fee) => (
-              <View key={`${fee.student.id}-${fee.feeStructure.id}`} style={styles.listRow}>
-                <View style={styles.listRowLeft}>
-                  <Text style={styles.listRowTitle}>{fee.feeStructure.name}</Text>
-                  <Text style={styles.listRowSubtext}>
-                    {fee.student.name}
-                    {fee.student.section?.class?.name && fee.student.section?.name
-                      ? ` • ${fee.student.section.class.name}-${fee.student.section.name}`
-                      : ''}
-                  </Text>
-                </View>
-                <View style={styles.feeAction}>
-                  <Text style={styles.listRowValue}>
-                    ₹{fee.feeStructure.amount.toLocaleString('en-IN')}
-                  </Text>
-                  <Pressable style={styles.smallButton} onPress={() => handleCreateFeeOrder(fee)}>
-                    <Text style={styles.smallButtonText}>Order</Text>
-                  </Pressable>
-                </View>
-              </View>
-            ))}
-            {pendingFees.length === 0 ? <Text style={styles.emptyText}>No pending fees.</Text> : null}
-          </View>
+      {role === 'TEACHER' ? (
+        <TeacherDashboard
+          loading={teacherLoading}
+          attendance={teacherAttendance}
+          timetable={teacherTimetable}
+          homework={teacherHomework}
+          arrangements={teacherArrangements}
+          earlyLeaves={teacherEarlyLeaves}
+          onMarkPresent={markTeacherPresent}
+          color={branding.primaryColor}
+        />
+      ) : null}
 
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Homework</Text>
-            {homework.slice(0, 8).map((item) => (
-              <View key={item.id} style={styles.homeworkRow}>
-                <View style={styles.listRowLeft}>
-                  <Text style={styles.listRowTitle}>{item.title}</Text>
-                  <Text style={styles.listRowSubtext}>
-                    {item.subject} • Deadline {formatDateTime(item.deadlineAt)}
-                    {item.teacher?.name ? ` • ${item.teacher.name}` : ''}
-                  </Text>
-                  <Text style={styles.remarkText}>
-                    Status: {item.submissionStatus.replace('_', ' ')} • Method: {item.submissionMethod}
-                  </Text>
-                  {item.teacherRemark ? (
-                    <Text style={styles.remarkText}>Remark: {item.teacherRemark}</Text>
-                  ) : null}
-                  {item.submission?.attachmentUrl ? (
-                    <Text style={styles.remarkText}>Attachment: {item.submission.attachmentUrl}</Text>
-                  ) : null}
-                  {item.submittedAt ? (
-                    <Text style={styles.remarkText}>Submitted on {formatDateTime(item.submittedAt)}</Text>
-                  ) : null}
-                  {item.checkedAt ? (
-                    <Text style={styles.remarkText}>Checked on {formatDateTime(item.checkedAt)}</Text>
-                  ) : null}
-                  {item.homeworkStatus === 'ACTIVE' ? (
-                    <View style={styles.submitWrap}>
-                      <TextInput
-                        autoCapitalize="none"
-                        placeholder="Paste attachment URL"
-                        placeholderTextColor="#8a8a8a"
-                        style={styles.submitInput}
-                        value={submissionUrls[item.id] || ''}
-                        onChangeText={(value) =>
-                          setSubmissionUrls((prev) => ({ ...prev, [item.id]: value }))
-                        }
-                      />
-                      <Pressable
-                        style={styles.smallButton}
-                        onPress={() => handleSubmitHomework(item)}
-                        disabled={submittingHomeworkId === item.id}
-                      >
-                        {submittingHomeworkId === item.id ? (
-                          <ActivityIndicator color="#fff" size="small" />
-                        ) : (
-                          <Text style={styles.smallButtonText}>Submit</Text>
-                        )}
-                      </Pressable>
-                    </View>
-                  ) : null}
-                </View>
-                <View style={styles.homeworkMeta}>
-                  <Text style={styles.statusPill}>{item.submissionStatus.replace('_', ' ')}</Text>
-                  <Text style={styles.methodPill}>{item.submissionMethod}</Text>
-                  {item.score !== null && item.maxScore !== null ? (
-                    <Text style={styles.listRowValue}>
-                      {item.score}/{item.maxScore}
-                    </Text>
-                  ) : null}
-                </View>
-              </View>
-            ))}
-            {homework.length === 0 ? <Text style={styles.emptyText}>No homework assigned.</Text> : null}
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Attendance (Last 30 days)</Text>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryText}>Present: {attendanceSummary.present}</Text>
-              <Text style={styles.summaryText}>Absent: {attendanceSummary.absent}</Text>
-              <Text style={styles.summaryText}>Late: {attendanceSummary.late}</Text>
-            </View>
-            {attendance.slice(0, 8).map((item) => (
-              <View key={item.id} style={styles.listRow}>
-                <Text style={styles.listRowTitle}>{formatDate(item.date)}</Text>
-                <Text style={styles.listRowValue}>{item.status}</Text>
-              </View>
-            ))}
-            {attendance.length === 0 ? <Text style={styles.emptyText}>No attendance records.</Text> : null}
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Marks</Text>
-            {marks.map((item) => (
-              <View key={item.id} style={styles.listRow}>
-                <View style={styles.listRowLeft}>
-                  <Text style={styles.listRowTitle}>{item.exam.name}</Text>
-                  <Text style={styles.listRowSubtext}>{item.exam.scheme?.name || 'Exam'}</Text>
-                </View>
-                <Text style={styles.listRowValue}>
-                  {item.marks}/{item.exam.maxMarks}
-                </Text>
-              </View>
-            ))}
-            {marks.length === 0 ? <Text style={styles.emptyText}>No marks published yet.</Text> : null}
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Published Report Cards</Text>
-            {reportCards.map((item) => (
-              <View key={item.id} style={styles.listRow}>
-                <View style={styles.listRowLeft}>
-                  <Text style={styles.listRowTitle}>{item.examScheme.name}</Text>
-                  <Text style={styles.listRowSubtext}>
-                    {item.student.name} • Roll {item.student.rollNo}
-                    {item.publishedAt ? ` • ${formatDate(item.publishedAt)}` : ''}
-                  </Text>
-                </View>
-                <Text style={styles.listRowValue}>
-                  {item.percentage}% • {item.grade}
-                </Text>
-              </View>
-            ))}
-            {reportCards.length === 0 ? (
-              <Text style={styles.emptyText}>No published report cards yet.</Text>
-            ) : null}
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Timetable</Text>
-            {timetable.map((slot) => (
-              <View key={slot.id} style={styles.listRow}>
-                <View style={styles.listRowLeft}>
-                  <Text style={styles.listRowTitle}>
-                    {DAY_NAMES[slot.dayOfWeek] || `Day ${slot.dayOfWeek}`} • P{slot.period}
-                  </Text>
-                  <Text style={styles.listRowSubtext}>{slot.teacher?.name || 'Teacher not assigned'}</Text>
-                </View>
-                <Text style={styles.listRowValue}>{slot.subject || 'Subject TBD'}</Text>
-              </View>
-            ))}
-            {timetable.length === 0 ? <Text style={styles.emptyText}>No timetable available.</Text> : null}
-          </View>
-
-          <View style={[styles.card, styles.lastCard]}>
-            <Text style={styles.sectionTitle}>Announcements</Text>
-            {announcements.map((item) => (
-              <View key={item.id} style={styles.announcementCard}>
-                <Text style={styles.announcementTitle}>{item.title}</Text>
-                <Text style={styles.announcementBody}>{item.body}</Text>
-                <Text style={styles.announcementMeta}>
-                  {formatDate(item.publishedAt)}
-                  {item.createdBy?.name ? ` • ${item.createdBy.name}` : ''}
-                </Text>
-              </View>
-            ))}
-            {announcements.length === 0 ? (
-              <Text style={styles.emptyText}>No announcements yet.</Text>
-            ) : null}
-          </View>
-        </>
-      )}
+      {isAdminRole(role) ? <AdminDashboard role={role} color={branding.primaryColor} /> : null}
+      {role === 'STUDENT' ? <StudentDashboard /> : null}
     </ScrollView>
   );
 }
 
+function BrandHeader({ branding, loading }: { branding: Branding; loading: boolean }) {
+  return (
+    <View style={styles.brandRow}>
+      {branding.logoUrl ? <Image source={{ uri: branding.logoUrl }} style={styles.logo} /> : <View style={styles.logoFallback}><Text style={styles.logoText}>S</Text></View>}
+      <View style={styles.brandText}>
+        <Text style={styles.title}>{branding.appName}</Text>
+        <Text style={styles.subtitle}>{loading ? 'Loading school branding...' : branding.schoolName}</Text>
+        {branding.poweredBySchoolSync ? <Text style={styles.poweredBy}>Powered by SchoolSync</Text> : null}
+      </View>
+    </View>
+  );
+}
+
+function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+  color,
+}: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+  color: string;
+}) {
+  return (
+    <View style={styles.segmented}>
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <Pressable key={option.value} style={[styles.segment, active && { backgroundColor: color }]} onPress={() => onChange(option.value)}>
+            <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{option.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function ParentDashboard(props: {
+  students: Child[];
+  selectedStudentId: string | null;
+  loadingData: boolean;
+  attendance: AttendanceItem[];
+  attendanceSummary: { present: number; absent: number; late: number };
+  marks: MarkItem[];
+  reportCards: ReportCardItem[];
+  timetable: TimetableItem[];
+  homework: HomeworkItem[];
+  announcements: AnnouncementItem[];
+  pendingFees: PendingFeeItem[];
+  submittingHomeworkId: string | null;
+  submissionUrls: Record<string, string>;
+  setSubmissionUrls: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  onChildChange: (studentId: string) => void;
+  onCreateFeeOrder: (fee: PendingFeeItem) => void;
+  onSubmitHomework: (item: HomeworkItem) => void;
+  color: string;
+}) {
+  if (props.loadingData) {
+    return <View style={styles.loaderWrap}><ActivityIndicator size="large" color={props.color} /></View>;
+  }
+
+  return (
+    <>
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Children</Text>
+        {props.students.length === 0 ? <Text style={styles.emptyText}>No linked students found for this account.</Text> : null}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {props.students.map((child) => {
+            const isSelected = props.selectedStudentId === child.id;
+            return (
+              <Pressable key={child.id} style={[styles.childChip, isSelected && { borderColor: props.color, backgroundColor: '#eef6ff' }]} onPress={() => props.onChildChange(child.id)}>
+                <Text style={[styles.childChipText, isSelected && { color: props.color }]}>{child.name}</Text>
+                <Text style={styles.childChipSubtext}>
+                  Roll {child.rollNo}
+                  {child.section?.class?.name && child.section?.name ? ` - ${child.section.class.name}-${child.section.name}` : ''}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      <FeesCard pendingFees={props.pendingFees} onCreateFeeOrder={props.onCreateFeeOrder} />
+      <HomeworkCard {...props} />
+      <AttendanceCard attendance={props.attendance} summary={props.attendanceSummary} />
+      <MarksCard marks={props.marks} />
+      <ReportCardsCard reportCards={props.reportCards} />
+      <TimetableCard timetable={props.timetable} />
+      <AnnouncementsCard announcements={props.announcements} />
+    </>
+  );
+}
+
+function TeacherDashboard({
+  loading,
+  attendance,
+  timetable,
+  homework,
+  arrangements,
+  earlyLeaves,
+  onMarkPresent,
+  color,
+}: {
+  loading: boolean;
+  attendance: TeacherTodayAttendance | null;
+  timetable: TimetableItem[];
+  homework: HomeworkItem[];
+  arrangements: TeacherArrangement[];
+  earlyLeaves: TeacherEarlyLeave[];
+  onMarkPresent: () => void;
+  color: string;
+}) {
+  const status = attendance?.status || attendance?.attendance?.status || 'Not marked';
+  return (
+    <>
+      {loading ? <View style={styles.loaderWrap}><ActivityIndicator size="large" color={color} /></View> : null}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Teacher Attendance</Text>
+        <Text style={styles.listRowSubtext}>Today status: {status}</Text>
+        <Pressable style={[styles.primaryButton, { backgroundColor: color }]} onPress={onMarkPresent}>
+          <Text style={styles.primaryButtonText}>Mark Present</Text>
+        </Pressable>
+      </View>
+      <TimetableCard timetable={timetable} title="Today Timetable" />
+      <SimpleList title="Homework" items={homework.slice(0, 8).map((item) => ({ id: item.id, title: item.title, subtitle: `${item.subject} - ${formatDateTime(item.deadlineAt)}` }))} />
+      <SimpleList title="Arrangements" items={arrangements.map((item) => ({ id: item.id, title: item.subject || 'Arrangement', subtitle: `${item.section?.class?.name || ''}-${item.section?.name || ''} P${item.period || '-'}` }))} />
+      <SimpleList title="Early Leave Requests" items={earlyLeaves.map((item) => ({ id: item.id, title: item.status, subtitle: `${formatDate(item.date)} after P${item.leaveAfterPeriod} - ${item.reason}` }))} last />
+    </>
+  );
+}
+
+function AdminDashboard({ role, color }: { role: string; color: string }) {
+  const cards = ['Students', 'Teachers', 'Fees', 'Attendance', 'Homework', 'Substitutions', 'Report Cards'];
+  return (
+    <View style={[styles.card, styles.lastCard]}>
+      <Text style={styles.sectionTitle}>{roleLabel(role)} Dashboard</Text>
+      <Text style={styles.emptyText}>Mobile admin overview is ready for backend summary APIs.</Text>
+      <View style={styles.grid}>
+        {cards.map((card) => (
+          <View key={card} style={styles.overviewTile}>
+            <Text style={[styles.overviewNumber, { color }]}>--</Text>
+            <Text style={styles.overviewLabel}>{card}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function StudentDashboard() {
+  return (
+    <View style={[styles.card, styles.lastCard]}>
+      <Text style={styles.sectionTitle}>Student Dashboard</Text>
+      <Text style={styles.emptyText}>Homework, timetable, attendance, marks, report cards, and announcements will appear here once student login APIs are available.</Text>
+    </View>
+  );
+}
+
+function FeesCard({ pendingFees, onCreateFeeOrder }: { pendingFees: PendingFeeItem[]; onCreateFeeOrder: (fee: PendingFeeItem) => void }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.sectionTitle}>Pending Fees</Text>
+      {pendingFees.slice(0, 6).map((fee) => (
+        <View key={`${fee.student.id}-${fee.feeStructure.id}`} style={styles.listRow}>
+          <View style={styles.listRowLeft}>
+            <Text style={styles.listRowTitle}>{fee.feeStructure.name}</Text>
+            <Text style={styles.listRowSubtext}>{fee.student.name}</Text>
+          </View>
+          <View style={styles.feeAction}>
+            <Text style={styles.listRowValue}>Rs. {fee.feeStructure.amount.toLocaleString('en-IN')}</Text>
+            <Pressable style={styles.smallButton} onPress={() => onCreateFeeOrder(fee)}><Text style={styles.smallButtonText}>Order</Text></Pressable>
+          </View>
+        </View>
+      ))}
+      {pendingFees.length === 0 ? <Text style={styles.emptyText}>No pending fees.</Text> : null}
+    </View>
+  );
+}
+
+function HomeworkCard(props: {
+  homework: HomeworkItem[];
+  submissionUrls: Record<string, string>;
+  setSubmissionUrls: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  submittingHomeworkId: string | null;
+  onSubmitHomework: (item: HomeworkItem) => void;
+}) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.sectionTitle}>Homework</Text>
+      {props.homework.slice(0, 8).map((item) => (
+        <View key={item.id} style={styles.homeworkRow}>
+          <View style={styles.listRowLeft}>
+            <Text style={styles.listRowTitle}>{item.title}</Text>
+            <Text style={styles.listRowSubtext}>{item.subject} - Deadline {formatDateTime(item.deadlineAt)}</Text>
+            <Text style={styles.remarkText}>Status: {item.submissionStatus.replace('_', ' ')} - Method: {item.submissionMethod}</Text>
+            {item.teacherRemark ? <Text style={styles.remarkText}>Remark: {item.teacherRemark}</Text> : null}
+            {item.homeworkStatus === 'ACTIVE' ? (
+              <View style={styles.submitWrap}>
+                <TextInput
+                  autoCapitalize="none"
+                  placeholder="Paste attachment URL"
+                  placeholderTextColor="#8a8a8a"
+                  style={styles.submitInput}
+                  value={props.submissionUrls[item.id] || ''}
+                  onChangeText={(value) => props.setSubmissionUrls((prev) => ({ ...prev, [item.id]: value }))}
+                />
+                <Pressable style={styles.smallButton} onPress={() => props.onSubmitHomework(item)} disabled={props.submittingHomeworkId === item.id}>
+                  {props.submittingHomeworkId === item.id ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.smallButtonText}>Submit</Text>}
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+          <View style={styles.homeworkMeta}>
+            <Text style={styles.statusPill}>{item.submissionStatus.replace('_', ' ')}</Text>
+            <Text style={styles.methodPill}>{item.submissionMethod}</Text>
+            {item.score !== null && item.maxScore !== null ? <Text style={styles.listRowValue}>{item.score}/{item.maxScore}</Text> : null}
+          </View>
+        </View>
+      ))}
+      {props.homework.length === 0 ? <Text style={styles.emptyText}>No homework assigned.</Text> : null}
+    </View>
+  );
+}
+
+function AttendanceCard({ attendance, summary }: { attendance: AttendanceItem[]; summary: { present: number; absent: number; late: number } }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.sectionTitle}>Attendance</Text>
+      <View style={styles.summaryRow}>
+        <Text style={styles.summaryText}>Present: {summary.present}</Text>
+        <Text style={styles.summaryText}>Absent: {summary.absent}</Text>
+        <Text style={styles.summaryText}>Late: {summary.late}</Text>
+      </View>
+      {attendance.slice(0, 8).map((item) => <InfoRow key={item.id} title={formatDate(item.date)} value={item.status} />)}
+      {attendance.length === 0 ? <Text style={styles.emptyText}>No attendance records.</Text> : null}
+    </View>
+  );
+}
+
+function MarksCard({ marks }: { marks: MarkItem[] }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.sectionTitle}>Marks</Text>
+      {marks.map((item) => <InfoRow key={item.id} title={item.exam.name} subtitle={item.exam.scheme?.name || 'Exam'} value={`${item.marks}/${item.exam.maxMarks}`} />)}
+      {marks.length === 0 ? <Text style={styles.emptyText}>No marks published yet.</Text> : null}
+    </View>
+  );
+}
+
+function ReportCardsCard({ reportCards }: { reportCards: ReportCardItem[] }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.sectionTitle}>Published Report Cards</Text>
+      {reportCards.map((item) => <InfoRow key={item.id} title={item.examScheme.name} subtitle={`${item.student.name} - Roll ${item.student.rollNo}${item.publishedAt ? ` - ${formatDate(item.publishedAt)}` : ''}`} value={`${item.percentage}% - ${item.grade}`} />)}
+      {reportCards.length === 0 ? <Text style={styles.emptyText}>No published report cards yet.</Text> : null}
+    </View>
+  );
+}
+
+function TimetableCard({ timetable, title = 'Timetable' }: { timetable: TimetableItem[]; title?: string }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {timetable.map((slot) => <InfoRow key={slot.id} title={`${DAY_NAMES[slot.dayOfWeek] || `Day ${slot.dayOfWeek}`} - P${slot.period}`} subtitle={slot.teacher?.name || 'Teacher not assigned'} value={slot.subject || 'Subject TBD'} />)}
+      {timetable.length === 0 ? <Text style={styles.emptyText}>No timetable available.</Text> : null}
+    </View>
+  );
+}
+
+function AnnouncementsCard({ announcements }: { announcements: AnnouncementItem[] }) {
+  return (
+    <View style={[styles.card, styles.lastCard]}>
+      <Text style={styles.sectionTitle}>Announcements</Text>
+      {announcements.map((item) => (
+        <View key={item.id} style={styles.announcementCard}>
+          <Text style={styles.announcementTitle}>{item.title}</Text>
+          <Text style={styles.announcementBody}>{item.body}</Text>
+          <Text style={styles.announcementMeta}>{formatDate(item.publishedAt)}{item.createdBy?.name ? ` - ${item.createdBy.name}` : ''}</Text>
+        </View>
+      ))}
+      {announcements.length === 0 ? <Text style={styles.emptyText}>No announcements yet.</Text> : null}
+    </View>
+  );
+}
+
+function SimpleList({ title, items, last }: { title: string; items: { id: string; title: string; subtitle?: string }[]; last?: boolean }) {
+  return (
+    <View style={[styles.card, last && styles.lastCard]}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {items.map((item) => <InfoRow key={item.id} title={item.title} subtitle={item.subtitle} />)}
+      {items.length === 0 ? <Text style={styles.emptyText}>No {title.toLowerCase()}.</Text> : null}
+    </View>
+  );
+}
+
+function InfoRow({ title, subtitle, value }: { title: string; subtitle?: string; value?: string }) {
+  return (
+    <View style={styles.listRow}>
+      <View style={styles.listRowLeft}>
+        <Text style={styles.listRowTitle}>{title}</Text>
+        {subtitle ? <Text style={styles.listRowSubtext}>{subtitle}</Text> : null}
+      </View>
+      {value ? <Text style={styles.listRowValue}>{value}</Text> : null}
+    </View>
+  );
+}
+
+function roleLabel(role?: string) {
+  if (role === 'SCHOOL_OWNER') return 'Owner';
+  if (role === 'SCHOOL_ADMIN') return 'Admin';
+  if (role === 'VICE_PRINCIPAL') return 'Principal';
+  if (role === 'TEACHER') return 'Teacher';
+  if (role === 'STUDENT') return 'Student';
+  return 'Parent';
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    backgroundColor: '#1976D2',
-    paddingHorizontal: 20,
-    paddingVertical: 22,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#E3F2FD',
-    marginTop: 6,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    marginHorizontal: 14,
-    marginTop: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#e8e8e8',
-  },
-  lastCard: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#222',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: '#222',
-    marginBottom: 12,
-    backgroundColor: '#fff',
-  },
-  primaryButton: {
-    backgroundColor: '#1976D2',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  primaryButtonDisabled: {
-    backgroundColor: '#9bb8d8',
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  helperText: {
-    marginTop: 10,
-    color: '#666',
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  errorText: {
-    color: '#d32f2f',
-    marginBottom: 10,
-    fontSize: 13,
-  },
-  errorBanner: {
-    backgroundColor: '#ffebee',
-    color: '#b71c1c',
-    marginHorizontal: 14,
-    marginTop: 14,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-  },
-  logoutButton: {
-    marginTop: 10,
-    alignSelf: 'flex-start',
-    backgroundColor: '#125aa0',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  logoutButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#222',
-    marginBottom: 10,
-  },
-  childChip: {
-    borderWidth: 1,
-    borderColor: '#dbe8f6',
-    backgroundColor: '#f8fbff',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginRight: 10,
-    minWidth: 150,
-  },
-  childChipSelected: {
-    borderColor: '#1976D2',
-    backgroundColor: '#e9f2ff',
-  },
-  childChipText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1f2937',
-  },
-  childChipTextSelected: {
-    color: '#0d47a1',
-  },
-  childChipSubtext: {
-    marginTop: 4,
-    fontSize: 12,
-    color: '#596779',
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-    gap: 8,
-  },
-  summaryText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#333',
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 9,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  listRowLeft: {
-    flexShrink: 1,
-    paddingRight: 10,
-  },
-  listRowTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#222',
-  },
-  listRowSubtext: {
-    marginTop: 2,
-    fontSize: 12,
-    color: '#666',
-  },
-  listRowValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1976D2',
-  },
-  feeAction: {
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  homeworkRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  homeworkMeta: {
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  statusPill: {
-    overflow: 'hidden',
-    borderRadius: 999,
-    backgroundColor: '#e9f2ff',
-    color: '#0d47a1',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  methodPill: {
-    overflow: 'hidden',
-    borderRadius: 999,
-    backgroundColor: '#f3f4f6',
-    color: '#374151',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  remarkText: {
-    marginTop: 5,
-    fontSize: 12,
-    lineHeight: 16,
-    color: '#4b5563',
-  },
-  submitWrap: {
-    marginTop: 10,
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  submitInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 13,
-    color: '#222',
-    backgroundColor: '#fff',
-  },
-  smallButton: {
-    backgroundColor: '#1976D2',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  smallButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  announcementCard: {
-    borderWidth: 1,
-    borderColor: '#ededed',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 10,
-    backgroundColor: '#fcfcfc',
-  },
-  announcementTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#222',
-  },
-  announcementBody: {
-    marginTop: 6,
-    fontSize: 13,
-    lineHeight: 18,
-    color: '#444',
-  },
-  announcementMeta: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#666',
-  },
-  emptyText: {
-    color: '#666',
-    fontSize: 13,
-  },
-  loaderWrap: {
-    paddingVertical: 40,
-  },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  header: { paddingHorizontal: 20, paddingVertical: 22 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  logo: { width: 52, height: 52, borderRadius: 12, backgroundColor: '#fff' },
+  logoFallback: { width: 52, height: 52, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  logoText: { color: '#1976D2', fontWeight: '800', fontSize: 24 },
+  brandText: { flex: 1 },
+  title: { fontSize: 26, fontWeight: '700', color: '#fff' },
+  subtitle: { fontSize: 14, color: '#E3F2FD', marginTop: 6 },
+  poweredBy: { fontSize: 12, color: '#E3F2FD', marginTop: 4 },
+  headerActions: { flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 12 },
+  rolePill: { overflow: 'hidden', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)', color: '#fff', paddingHorizontal: 10, paddingVertical: 5, fontSize: 12, fontWeight: '700' },
+  card: { backgroundColor: '#fff', borderRadius: 14, marginHorizontal: 14, marginTop: 14, padding: 14, borderWidth: 1, borderColor: '#e8e8e8' },
+  lastCard: { marginBottom: 24 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#222', marginBottom: 10 },
+  label: { fontSize: 14, fontWeight: '600', color: '#222', marginBottom: 6 },
+  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: '#222', marginBottom: 12, backgroundColor: '#fff' },
+  segmented: { flexDirection: 'row', borderWidth: 1, borderColor: '#dbe2ea', borderRadius: 12, padding: 3, marginBottom: 14, backgroundColor: '#f8fafc' },
+  segment: { flex: 1, borderRadius: 9, paddingVertical: 9, alignItems: 'center' },
+  segmentText: { fontSize: 13, color: '#475569', fontWeight: '700' },
+  segmentTextActive: { color: '#fff' },
+  primaryButton: { borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 4 },
+  primaryButtonDisabled: { backgroundColor: '#9bb8d8' },
+  primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  errorText: { color: '#d32f2f', marginBottom: 10, fontSize: 13 },
+  errorBanner: { backgroundColor: '#ffebee', color: '#b71c1c', marginHorizontal: 14, marginTop: 14, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13 },
+  infoBox: { backgroundColor: '#eef6ff', color: '#1d4f8f', padding: 10, borderRadius: 10, fontSize: 12, lineHeight: 17, marginBottom: 12 },
+  logoutButton: { backgroundColor: 'rgba(0,0,0,0.18)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  logoutButtonText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  childChip: { borderWidth: 1, borderColor: '#dbe8f6', backgroundColor: '#f8fbff', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginRight: 10, minWidth: 150 },
+  childChipText: { fontSize: 15, fontWeight: '700', color: '#1f2937' },
+  childChipSubtext: { marginTop: 4, fontSize: 12, color: '#596779' },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, gap: 8 },
+  summaryText: { fontSize: 13, fontWeight: '600', color: '#333' },
+  listRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  listRowLeft: { flexShrink: 1, paddingRight: 10 },
+  listRowTitle: { fontSize: 14, fontWeight: '600', color: '#222' },
+  listRowSubtext: { marginTop: 2, fontSize: 12, color: '#666' },
+  listRowValue: { fontSize: 13, fontWeight: '600', color: '#1976D2', textAlign: 'right' },
+  feeAction: { alignItems: 'flex-end', gap: 6 },
+  homeworkRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  homeworkMeta: { alignItems: 'flex-end', gap: 6 },
+  statusPill: { overflow: 'hidden', borderRadius: 999, backgroundColor: '#e9f2ff', color: '#0d47a1', paddingHorizontal: 8, paddingVertical: 3, fontSize: 10, fontWeight: '700' },
+  methodPill: { overflow: 'hidden', borderRadius: 999, backgroundColor: '#f3f4f6', color: '#374151', paddingHorizontal: 8, paddingVertical: 3, fontSize: 10, fontWeight: '700' },
+  remarkText: { marginTop: 5, fontSize: 12, lineHeight: 16, color: '#4b5563' },
+  submitWrap: { marginTop: 10, flexDirection: 'row', gap: 8, alignItems: 'center' },
+  submitInput: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, color: '#222', backgroundColor: '#fff' },
+  smallButton: { backgroundColor: '#1976D2', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+  smallButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  announcementCard: { borderWidth: 1, borderColor: '#ededed', borderRadius: 10, padding: 10, marginBottom: 10, backgroundColor: '#fcfcfc' },
+  announcementTitle: { fontSize: 15, fontWeight: '700', color: '#222' },
+  announcementBody: { marginTop: 6, fontSize: 13, lineHeight: 18, color: '#444' },
+  announcementMeta: { marginTop: 8, fontSize: 12, color: '#666' },
+  emptyText: { color: '#666', fontSize: 13, lineHeight: 19 },
+  loaderWrap: { paddingVertical: 40 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
+  overviewTile: { width: '47%', borderWidth: 1, borderColor: '#eef0f3', borderRadius: 12, padding: 12, backgroundColor: '#fbfcfe' },
+  overviewNumber: { fontSize: 24, fontWeight: '800' },
+  overviewLabel: { color: '#475569', fontSize: 12, marginTop: 4, fontWeight: '600' },
 });
