@@ -40,6 +40,9 @@ type StudentUser = {
   admissionNo?: string | null;
   email?: string | null;
   schoolId?: string;
+  // Class/section are not returned by /api/mobile/me today; kept optional so the
+  // header renders them automatically if the backend starts including them.
+  section?: { name?: string; class?: { name?: string } } | null;
 };
 
 type SchoolInfo = {
@@ -307,6 +310,11 @@ export default function App() {
   const [teacherError, setTeacherError] = useState<string | null>(null);
   const [markingAttendance, setMarkingAttendance] = useState(false);
 
+  const [studentProfile, setStudentProfile] = useState<StudentUser | null>(null);
+  const [studentSchool, setStudentSchool] = useState<SchoolInfo | null>(null);
+  const [studentLoading, setStudentLoading] = useState(false);
+  const [studentError, setStudentError] = useState<string | null>(null);
+
   useEffect(() => {
     let active = true;
     setLoadingBranding(true);
@@ -341,6 +349,10 @@ export default function App() {
         const restoredRole = normalizeRole(restoredUser.role);
         if (restoredRole === 'PARENT') await loadParentDashboard(parsed.token, null);
         if (restoredRole === 'TEACHER') await loadTeacherDashboard(parsed.token);
+        if (restoredRole === 'STUDENT' && me.student) {
+          setStudentProfile(me.student);
+          setStudentSchool(me.school ?? null);
+        }
       } catch {
         await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
       } finally {
@@ -444,6 +456,26 @@ export default function App() {
     }
   }
 
+  async function loadStudentDashboard(authToken: string) {
+    setStudentLoading(true);
+    setStudentError(null);
+    try {
+      // Only the student profile is fetchable today (no student-scoped data APIs
+      // exist, and parent APIs reject student tokens). Re-fetch /api/mobile/me so
+      // pull-to-refresh keeps the profile header in sync.
+      const me = await apiRequest<MobileMeResponse>('/api/mobile/me', {}, authToken);
+      if (me.role === 'STUDENT' && me.student) {
+        setStudentProfile(me.student);
+        setStudentSchool(me.school ?? null);
+      }
+    } catch (loadError) {
+      setStudentError(loadError instanceof Error ? loadError.message : 'Failed to load student profile.');
+    } finally {
+      setStudentLoading(false);
+      setRefreshing(false);
+    }
+  }
+
   function clearStudentData() {
     setAttendance([]);
     setMarks([]);
@@ -501,6 +533,8 @@ export default function App() {
         };
         setToken(loginRes.token);
         setUser(nextUser);
+        setStudentProfile(student);
+        setStudentSchool(loginRes.school ?? null);
         await persistSession(loginRes.token, nextUser);
       }
     } catch (loginError) {
@@ -530,6 +564,7 @@ export default function App() {
     const role = normalizeRole(user.role);
     if (role === 'PARENT') await loadParentDashboard(token, selectedStudentId);
     else if (role === 'TEACHER') await loadTeacherDashboard(token);
+    else if (role === 'STUDENT') await loadStudentDashboard(token);
     else setRefreshing(false);
   }
 
@@ -609,6 +644,10 @@ export default function App() {
     setTeacherEarlyLeaves([]);
     setTeacherError(null);
     setMarkingAttendance(false);
+    setStudentProfile(null);
+    setStudentSchool(null);
+    setStudentLoading(false);
+    setStudentError(null);
     setEmail('');
     setPhone('');
     setPassword('');
@@ -751,7 +790,15 @@ export default function App() {
       ) : null}
 
       {isAdminRole(role) ? <AdminDashboard role={role} color={branding.primaryColor} /> : null}
-      {role === 'STUDENT' ? <StudentDashboard /> : null}
+      {role === 'STUDENT' ? (
+        <StudentDashboard
+          student={studentProfile}
+          school={studentSchool}
+          loading={studentLoading}
+          error={studentError}
+          color={branding.primaryColor}
+        />
+      ) : null}
     </ScrollView>
   );
 }
@@ -1029,11 +1076,87 @@ function AdminDashboard({ role, color }: { role: string; color: string }) {
   );
 }
 
-function StudentDashboard() {
+function StudentDashboard({
+  student,
+  school,
+  loading,
+  error,
+  color,
+}: {
+  student: StudentUser | null;
+  school: SchoolInfo | null;
+  loading: boolean;
+  error: string | null;
+  color: string;
+}) {
+  const className = student?.section?.class?.name;
+  const sectionName = student?.section?.name;
+  const classSection =
+    className && sectionName ? `${className} - ${sectionName}` : className || sectionName || null;
+  const initial = (student?.name || 'S').trim().charAt(0).toUpperCase();
+
   return (
-    <View style={[styles.card, styles.lastCard]}>
-      <Text style={styles.sectionTitle}>Student Dashboard</Text>
-      <Text style={styles.emptyText}>Homework, timetable, attendance, marks, report cards, and announcements will appear here once student login APIs are available.</Text>
+    <>
+      {error ? (
+        <View style={styles.inlineError}>
+          <Text style={styles.inlineErrorTitle}>Could not refresh student profile</Text>
+          <Text style={styles.inlineErrorText}>{error}</Text>
+        </View>
+      ) : null}
+
+      <View style={[styles.card, styles.studentProfileCard]}>
+        <View style={[styles.studentAvatar, { backgroundColor: color }]}>
+          <Text style={styles.studentAvatarText}>{initial}</Text>
+        </View>
+        <View style={styles.studentProfileBody}>
+          <Text style={styles.studentName}>{student?.name || 'Student'}</Text>
+          <Text style={styles.studentClassLine}>{classSection || 'Class & section not provided'}</Text>
+          <View style={styles.studentMetaRow}>
+            <Text style={styles.studentMetaPill}>Roll {student?.rollNo || '--'}</Text>
+            {student?.admissionNo ? <Text style={styles.studentMetaPill}>Adm {student.admissionNo}</Text> : null}
+          </View>
+          <Text style={styles.studentSchool}>{school?.name || 'School'}</Text>
+        </View>
+        {loading ? <ActivityIndicator color={color} /> : null}
+      </View>
+
+      <StudentInfoCard
+        title="Attendance Summary"
+        message="Your attendance summary will appear here once the student data service is connected."
+      />
+      <StudentInfoCard
+        title="Homework"
+        message="Assigned homework and submission status will appear here once the student data service is connected."
+      />
+      <StudentInfoCard
+        title="Today's Timetable"
+        message="Today's periods will appear here once the student data service is connected."
+      />
+      <StudentInfoCard
+        title="Recent Marks"
+        message="Your latest exam marks will appear here once the student data service is connected."
+      />
+      <StudentInfoCard
+        title="Published Report Cards"
+        message="Published report cards will appear here once the student data service is connected."
+      />
+      <StudentInfoCard
+        title="Announcements"
+        message="School announcements will appear here once the student data service is connected."
+        last
+      />
+    </>
+  );
+}
+
+function StudentInfoCard({ title, message, last }: { title: string; message: string; last?: boolean }) {
+  return (
+    <View style={[styles.card, last && styles.lastCard]}>
+      <View style={styles.cardHeaderRow}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={styles.comingSoonPill}>Coming soon</Text>
+      </View>
+      <Text style={styles.emptyText}>{message}</Text>
     </View>
   );
 }
@@ -1275,6 +1398,16 @@ const styles = StyleSheet.create({
   teacherMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   periodBadge: { minWidth: 38, borderRadius: 10, borderWidth: 1, paddingVertical: 7, paddingHorizontal: 8, alignItems: 'center', backgroundColor: '#f8fafc' },
   periodBadgeText: { fontSize: 12, fontWeight: '800' },
+  studentProfileCard: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  studentAvatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  studentAvatarText: { color: '#fff', fontSize: 24, fontWeight: '800' },
+  studentProfileBody: { flex: 1 },
+  studentName: { fontSize: 18, fontWeight: '800', color: '#0f172a' },
+  studentClassLine: { marginTop: 3, fontSize: 13, fontWeight: '600', color: '#475569' },
+  studentMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  studentMetaPill: { overflow: 'hidden', borderRadius: 999, backgroundColor: '#eef2ff', color: '#3730a3', paddingHorizontal: 9, paddingVertical: 3, fontSize: 11, fontWeight: '700' },
+  studentSchool: { marginTop: 8, fontSize: 12, color: '#64748b', fontWeight: '600' },
+  comingSoonPill: { overflow: 'hidden', borderRadius: 999, backgroundColor: '#f1f5f9', color: '#64748b', paddingHorizontal: 9, paddingVertical: 3, fontSize: 10, fontWeight: '800', marginBottom: 10 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
   overviewTile: { width: '47%', borderWidth: 1, borderColor: '#eef0f3', borderRadius: 12, padding: 12, backgroundColor: '#fbfcfe' },
   overviewNumber: { fontSize: 24, fontWeight: '800' },
