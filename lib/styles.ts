@@ -93,4 +93,27 @@ export const styles = StyleSheet.create({
   overviewTile: { width: '47%', borderWidth: 1, borderColor: '#eef0f3', borderRadius: 12, padding: 12, backgroundColor: '#fbfcfe' },
   overviewNumber: { fontSize: 24, fontWeight: '800' },
   overviewLabel: { color: '#475569', fontSize: 12, marginTop: 4, fontWeight: '600' },
+
+  // Simple back-arrow sub-screen header, shared by every Student Portal
+  // detail screen (Profile/Timetable/Attendance/Marks/Report Cards/
+  // Announcements) and the portal Search screen — distinct from
+  // components/BrandHeader.tsx's ActorHeader, which is branding-first and
+  // has no back navigation.
+  subScreenHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 18, gap: 14 },
+  subScreenHeaderTitle: { flex: 1, fontSize: 20, fontWeight: '700', color: '#fff' },
+  subScreenHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+
+  // Student Portal grid (3-column icon-tile menu).
+  portalGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10, paddingTop: 16, gap: '2%' },
+  portalTile: { width: '31.33%', alignItems: 'center', backgroundColor: '#f5f7fa', borderRadius: 16, paddingVertical: 16, paddingHorizontal: 6, marginBottom: 14 },
+  portalTileBadge: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  portalTileLabel: { fontSize: 12, fontWeight: '600', color: '#1f2937', textAlign: 'center', lineHeight: 16 },
+
+  // Student Portal search (filterable vertical list, same tiles as rows).
+  searchInputWrap: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
+  searchInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#dbe2ea', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#fff' },
+  searchInput: { flex: 1, fontSize: 15, color: '#222', padding: 0 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  searchRowBadge: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  searchRowLabel: { fontSize: 15, fontWeight: '600', color: '#222' },
 });

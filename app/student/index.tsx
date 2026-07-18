@@ -1,6 +1,7 @@
 import React from 'react';
-import { Redirect } from 'expo-router';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Redirect, useRouter } from 'expo-router';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ActorHeader } from '@/components/BrandHeader';
 import { AnnouncementsCard } from '@/components/AnnouncementsCard';
 import { MarksCard } from '@/components/MarksCard';
@@ -17,6 +18,7 @@ export default function StudentScreen() {
   const { role, studentProfile, studentSchool, branding, logout, token } = useAuth();
   const dashboard = useStudentDashboard();
   const leave = useStudentLeave();
+  const router = useRouter();
 
   if (role !== 'STUDENT') return <Redirect href="/" />;
 
@@ -47,6 +49,18 @@ export default function StudentScreen() {
         roleLabel={roleLabel(role)}
         onLogout={logout}
       />
+
+      <Pressable
+        style={[styles.teacherHero, { marginBottom: 0 }]}
+        onPress={() => router.push('/student/portal')}
+      >
+        <View style={styles.teacherHeroText}>
+          <Text style={styles.teacherHeroLabel}>ALL MODULES</Text>
+          <Text style={styles.teacherHeroTitle}>Student Portal</Text>
+          <Text style={styles.teacherHeroSubtext}>Profile, Timetable, Attendance, Marks, Report Cards, Announcements</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={22} color={branding.primaryColor} />
+      </Pressable>
 
       {dashboard.error ? (
         <View style={styles.inlineError}>
