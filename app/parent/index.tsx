@@ -10,8 +10,10 @@ import { MarksCard } from '@/components/MarksCard';
 import { ReportCardsCard } from '@/components/ReportCardsCard';
 import { StudentLeaveCard } from '@/components/StudentLeaveCard';
 import { TimetableCard } from '@/components/TimetableCard';
+import { TransportCard } from '@/components/TransportCard';
 import { useParentDashboard } from '@/hooks/useParentDashboard';
 import { useParentStudentLeave } from '@/hooks/useParentStudentLeave';
+import { useParentTransportTrip } from '@/hooks/useParentTransportTrip';
 import { useAuth } from '@/lib/auth-context';
 import { roleLabel } from '@/lib/format';
 import { styles } from '@/lib/styles';
@@ -20,6 +22,10 @@ export default function ParentScreen() {
   const { role, user, branding, logout, token } = useAuth();
   const dashboard = useParentDashboard();
   const leave = useParentStudentLeave(dashboard.selectedStudentId);
+  // Tied to the same selectedStudentId as the rest of this dashboard, so
+  // switching children in the chip row above also switches whose trip is
+  // being polled/displayed here.
+  const transport = useParentTransportTrip(dashboard.selectedStudentId);
 
   if (role !== 'PARENT') return <Redirect href="/" />;
 
@@ -69,6 +75,13 @@ export default function ParentScreen() {
             </ScrollView>
           </View>
 
+          <TransportCard
+            trip={transport.trip}
+            loading={transport.loading}
+            error={transport.error}
+            color={branding.primaryColor}
+            emptyLabel="No bus trip today."
+          />
           <FeesCard pendingFees={dashboard.pendingFees} />
           <HomeworkCard
             homework={dashboard.homework}

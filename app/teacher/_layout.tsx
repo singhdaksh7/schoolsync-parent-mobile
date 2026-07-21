@@ -37,6 +37,10 @@ export default function TeacherTabsLayout() {
         options={{ title: 'Work', tabBarIcon: ({ color, size }) => <Ionicons name="briefcase" color={color} size={size} /> }}
       />
       <Tabs.Screen
+        name="transport"
+        options={{ title: 'Transport', tabBarIcon: ({ color, size }) => <Ionicons name="bus" color={color} size={size} /> }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{ title: 'Profile', tabBarIcon: ({ color, size }) => <Ionicons name="person" color={color} size={size} /> }}
       />
