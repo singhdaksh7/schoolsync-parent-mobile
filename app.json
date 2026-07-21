@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "SchoolSync Parent",
+    "name": "SchoolSync",
     "slug": "schoolsync-parent",
-    "version": "1.0.0",
+    "version": "1.0.0-pilot",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "ios": {
@@ -22,6 +22,12 @@
       "eas": {
         "projectId": "76bd46fd-2b25-46c4-9972-99b43e3aa071"
       }
-    }
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-font",
+      "expo-router",
+      "expo-web-browser"
+    ]
   }
 }
