@@ -43,6 +43,7 @@ export default function DriverScreen() {
               <Text style={styles.listRowSubtext}>Lasted {formatTripDuration(driver.trip.startedAt, driver.trip.endedAt)}</Text>
             ) : null}
             {driver.tripError ? <Text style={styles.inlineErrorText}>{driver.tripError}</Text> : null}
+            {driver.locationWarning ? <Text style={styles.inlineErrorText}>{driver.locationWarning}</Text> : null}
 
             <Pressable
               style={[

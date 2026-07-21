@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
+import { startDriverLocationTracking, stopDriverLocationTracking } from '@/lib/driver-location-task';
 import type { DriverRouteResponse, DriverTripEndResponse, DriverTripStartResponse, TripStatus } from '@/lib/types';
 
 // Not session-sensitive (no PII, just a trip id/status/timestamps) so plain
@@ -31,12 +32,13 @@ async function persistTrip(trip: PersistedTrip | null): Promise<void> {
 }
 
 /**
- * Drives the driver's own route view + trip start/end/status (Phase 2A).
+ * Drives the driver's own route view + trip start/end/status (Phase 2A) and
+ * wires trip start/end into background location tracking (Phase 2B).
  *
  * There is no GET-active-trip endpoint for drivers (see the Transport
  * Driver Portal spec) — "current trip status" is purely local app state,
  * set from the start/end response and persisted so a relaunch mid-trip can
- * restore the status display.
+ * resume both the status display and background location pings.
  */
 export function useDriverTrip() {
   const { token } = useAuth();
@@ -49,6 +51,7 @@ export function useDriverTrip() {
   const [starting, setStarting] = useState(false);
   const [ending, setEnding] = useState(false);
   const [tripError, setTripError] = useState<string | null>(null);
+  const [locationWarning, setLocationWarning] = useState<string | null>(null);
 
   const loadRoute = useCallback(
     async (force = false) => {
@@ -74,32 +77,44 @@ export function useDriverTrip() {
     loadRoute();
   }, [loadRoute]);
 
-  // Resume the locally known trip status that was already set when the app
-  // was last closed — see the JSDoc above for why this reads local storage
-  // instead of a backend "current trip" endpoint (none exists for drivers).
+  // Resume an ACTIVE trip that was already running when the app was last
+  // closed — see the JSDoc above for why this reads local storage instead
+  // of a backend "current trip" endpoint (none exists for drivers). This is
+  // also the only way the background location task gets re-armed after an
+  // app restart mid-trip, since nothing else calls startDriverLocationTracking
+  // on cold start.
   useEffect(() => {
     let active = true;
     (async () => {
       const persisted = await loadPersistedTrip();
-      if (active) {
-        if (persisted) setTrip(persisted);
-        setRestoringTrip(false);
+      if (!active) return;
+      if (persisted) {
+        setTrip(persisted);
+        if (persisted.status === 'ACTIVE' && token) {
+          const permission = await startDriverLocationTracking(persisted.tripId, token);
+          if (active && !permission.granted) setLocationWarning(permission.reason);
+        }
       }
+      if (active) setRestoringTrip(false);
     })();
     return () => {
       active = false;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const startTrip = useCallback(async () => {
     if (!token) return;
     setStarting(true);
     setTripError(null);
+    setLocationWarning(null);
     try {
       const result = await apiRequest<DriverTripStartResponse>('/api/mobile/driver/trips/start', { method: 'POST' }, token);
       const nextTrip: PersistedTrip = { tripId: result.tripId, status: result.status, startedAt: result.startedAt, endedAt: null };
       setTrip(nextTrip);
       await persistTrip(nextTrip);
+      const permission = await startDriverLocationTracking(result.tripId, token);
+      if (!permission.granted) setLocationWarning(permission.reason);
     } catch (err) {
       setTripError(err instanceof Error ? err.message : 'Failed to start trip.');
     } finally {
@@ -117,6 +132,9 @@ export function useDriverTrip() {
         { method: 'POST' },
         token
       );
+      // Stop pinging before anything else — a trip that's ended server-side
+      // must never keep sending location updates client-side.
+      await stopDriverLocationTracking();
       const nextTrip: PersistedTrip = { tripId: result.tripId, status: result.status, startedAt: result.startedAt, endedAt: result.endedAt };
       setTrip(nextTrip);
       await persistTrip(null);
@@ -137,6 +155,7 @@ export function useDriverTrip() {
     starting,
     ending,
     tripError,
+    locationWarning,
     startTrip,
     endTrip,
     handleRefresh: () => loadRoute(true),
