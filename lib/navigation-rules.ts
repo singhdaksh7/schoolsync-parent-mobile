@@ -2,7 +2,7 @@
 // unit-testable without rendering expo-router navigation.
 import { isAdminRole } from './format';
 
-export type LandingRoute = '/login' | '/mobile-unavailable' | '/parent' | '/teacher' | '/student' | '/admin';
+export type LandingRoute = '/login' | '/mobile-unavailable' | '/parent' | '/teacher' | '/student' | '/admin' | '/driver';
 
 /**
  * Decides where the root gate sends an authenticated (or not-yet-authenticated)
@@ -19,6 +19,7 @@ export function resolveLandingRoute(input: {
   if (input.mobileAppEnabled === false) return '/mobile-unavailable';
   if (input.role === 'TEACHER') return '/teacher';
   if (input.role === 'STUDENT') return '/student';
+  if (input.role === 'DRIVER') return '/driver';
   if (isAdminRole(input.role)) return '/admin';
   return '/parent';
 }

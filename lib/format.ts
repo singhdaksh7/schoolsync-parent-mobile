@@ -33,5 +33,6 @@ export function roleLabel(role?: string) {
   if (role === 'VICE_PRINCIPAL') return 'Principal';
   if (role === 'TEACHER') return 'Teacher';
   if (role === 'STUDENT') return 'Student';
+  if (role === 'DRIVER') return 'Driver';
   return 'Parent';
 }

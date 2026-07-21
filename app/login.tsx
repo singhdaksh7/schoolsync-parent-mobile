@@ -9,7 +9,7 @@ import { styles } from '@/lib/styles';
 import type { LoginMode } from '@/lib/types';
 
 export default function LoginScreen() {
-  const { token, restoring, branding, loadingBranding, loginParentOrStudent, loginStaff } = useAuth();
+  const { token, restoring, branding, loadingBranding, loginParentOrStudent, loginStaff, loginDriver } = useAuth();
   const [loginMode, setLoginMode] = useState<LoginMode>('PARENT_STUDENT');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -26,11 +26,17 @@ export default function LoginScreen() {
         throw new Error(
           loginMode === 'PARENT_STUDENT'
             ? 'Please enter your phone/admission number and password.'
-            : 'Please enter email and password.'
+            : loginMode === 'DRIVER'
+              ? 'Please enter your driver email and password.'
+              : 'Please enter email and password.'
         );
       }
       if (loginMode === 'PARENT_STUDENT') {
         await loginParentOrStudent(identifier.trim(), password);
+        return;
+      }
+      if (loginMode === 'DRIVER') {
+        await loginDriver(identifier.trim(), password);
         return;
       }
       await loginStaff(identifier.trim(), password);
@@ -56,6 +62,7 @@ export default function LoginScreen() {
           options={[
             { value: 'PARENT_STUDENT', label: 'Parent / Student' },
             { value: 'STAFF', label: 'Staff' },
+            { value: 'DRIVER', label: 'Driver' },
           ]}
           onChange={setLoginMode}
           color={branding.primaryColor}
@@ -67,6 +74,19 @@ export default function LoginScreen() {
             <TextInput
               autoCapitalize="none"
               placeholder="+91 98765 43210 or admission number"
+              placeholderTextColor="#8a8a8a"
+              style={styles.input}
+              value={identifier}
+              onChangeText={setIdentifier}
+            />
+          </>
+        ) : loginMode === 'DRIVER' ? (
+          <>
+            <Text style={styles.label}>Driver Email</Text>
+            <TextInput
+              autoCapitalize="none"
+              keyboardType="email-address"
+              placeholder="driver@school.edu"
               placeholderTextColor="#8a8a8a"
               style={styles.input}
               value={identifier}

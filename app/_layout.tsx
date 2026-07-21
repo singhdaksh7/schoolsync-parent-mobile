@@ -36,6 +36,7 @@ export default function RootLayout() {
         <Stack.Screen name="parent" options={{ headerShown: false }} />
         <Stack.Screen name="teacher" options={{ headerShown: false }} />
         <Stack.Screen name="student" options={{ headerShown: false }} />
+        <Stack.Screen name="driver" options={{ headerShown: false }} />
         <Stack.Screen name="admin" options={{ headerShown: false }} />
         <Stack.Screen name="mobile-unavailable" options={{ headerShown: false }} />
       </Stack>

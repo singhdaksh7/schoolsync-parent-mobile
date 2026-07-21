@@ -4,7 +4,7 @@ import { cacheKey, cachedFetch, CACHE_TTL, clearAllCache } from './query-cache';
 import { clearPdfCache } from './pdf-download';
 import { clearSession, loadSession, persistSession } from './session';
 import { DEFAULT_BRANDING } from './types';
-import type { AppUser, Branding, MobileMeResponse, SchoolInfo, StudentUser, UnifiedLoginResponse } from './types';
+import type { AppUser, Branding, DriverLoginResponse, MobileMeResponse, SchoolInfo, StudentUser, UnifiedLoginResponse } from './types';
 
 const AUTHENTICATED_BRANDING_SCOPE = 'mobile-branding';
 
@@ -45,6 +45,7 @@ type AuthState = {
   studentSchool: SchoolInfo | null;
   loginParentOrStudent: (identifier: string, password: string) => Promise<LoginResult>;
   loginStaff: (email: string, password: string) => Promise<AppUser>;
+  loginDriver: (identifier: string, password: string) => Promise<AppUser>;
   logout: () => void;
 };
 
@@ -264,6 +265,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return nextUser;
   }, []);
 
+  // Transport Driver Portal (Phase 2A) login — same request/response/
+  // error-handling/token-storage structure as loginStaff above, pointed at
+  // the driver-specific login route.
+  const loginDriver = useCallback(async (identifier: string, password: string) => {
+    const res = await apiRequest<DriverLoginResponse>('/api/mobile/driver/login', {
+      method: 'POST',
+      body: JSON.stringify({ identifier, password }),
+    });
+    resetUnauthorizedGuard();
+    const nextUser = { ...res.user, role: normalizeRole(res.user.role) };
+    await persistSession(res.token, nextUser);
+    setToken(res.token);
+    setUser(nextUser);
+    if (res.school?.name || res.school?.logoUrl) {
+      setBranding((prev) => ({
+        ...prev,
+        schoolName: res.school?.name ?? prev.schoolName,
+        logoUrl: res.school?.logoUrl ?? prev.logoUrl,
+      }));
+    }
+    return nextUser;
+  }, []);
+
   const role = normalizeRole(user?.role);
 
   const value = useMemo<AuthState>(
@@ -279,9 +303,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       studentSchool,
       loginParentOrStudent,
       loginStaff,
+      loginDriver,
       logout,
     }),
-    [token, user, role, restoring, bootstrapError, branding, loadingBranding, studentProfile, studentSchool, loginParentOrStudent, loginStaff, logout]
+    [
+      token,
+      user,
+      role,
+      restoring,
+      bootstrapError,
+      branding,
+      loadingBranding,
+      studentProfile,
+      studentSchool,
+      loginParentOrStudent,
+      loginStaff,
+      loginDriver,
+      logout,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
