@@ -20,6 +20,7 @@ export function useStudentDashboard() {
   const [attendance, setAttendance] = useState<AttendanceItem[]>([]);
   const [attendanceSummary, setAttendanceSummary] = useState<StudentAttendanceSummary | null>(null);
   const [homework, setHomework] = useState<HomeworkItem[]>([]);
+  const [timetable, setTimetable] = useState<TimetableItem[]>([]);
   const [todayTimetable, setTodayTimetable] = useState<TimetableItem[]>([]);
   const [marks, setMarks] = useState<MarkItem[]>([]);
   const [reportCards, setReportCards] = useState<ReportCardItem[]>([]);
@@ -77,7 +78,10 @@ export function useStudentDashboard() {
           setAttendanceSummary(attR.value.summary ?? null);
         }
         if (hwR.status === 'fulfilled') setHomework(hwR.value.homework || []);
-        if (ttR.status === 'fulfilled') setTodayTimetable(ttR.value.today || []);
+        if (ttR.status === 'fulfilled') {
+          setTimetable(ttR.value.timetable || []);
+          setTodayTimetable(ttR.value.today || []);
+        }
         if (mkR.status === 'fulfilled') setMarks(mkR.value.marks || []);
         if (rcR.status === 'fulfilled') setReportCards(rcR.value.reportCards || []);
         if (anR.status === 'fulfilled') setAnnouncements(anR.value.announcements || []);
@@ -111,5 +115,18 @@ export function useStudentDashboard() {
     load(true);
   }, [load]);
 
-  return { attendance, attendanceSummary, homework, todayTimetable, marks, reportCards, announcements, loading, refreshing, error, handleRefresh };
+  return {
+    attendance,
+    attendanceSummary,
+    homework,
+    timetable,
+    todayTimetable,
+    marks,
+    reportCards,
+    announcements,
+    loading,
+    refreshing,
+    error,
+    handleRefresh,
+  };
 }
