@@ -21,4 +21,8 @@ describe('eas.json — Android device build must never target a loopback API', (
     expect(easConfig.build.preview.distribution).toBe('internal');
     expect(easConfig.build.preview.android?.buildType).toBe('apk');
   });
+
+  it('preview profile sets a schoolSlug alongside the API URL — /api/mobile/login cannot resolve a tenant without one', () => {
+    expect(easConfig.build.preview.env?.EXPO_PUBLIC_SCHOOL_SLUG).toBe('royal-public-school');
+  });
 });

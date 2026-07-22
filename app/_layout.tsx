@@ -1,11 +1,22 @@
+import { useEffect } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import { AuthProvider } from '@/lib/auth-context';
 import { ScreenErrorFallback } from '@/components/ScreenErrorFallback';
 import { clearSession } from '@/lib/session';
 import { clearAllCache } from '@/lib/query-cache';
 import { clearGetDedupCache } from '@/lib/api-client';
 import { clearPdfCache } from '@/lib/pdf-download';
+
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 /**
  * Root-level fallback only. expo-router mounts this IN PLACE OF the whole
@@ -28,6 +39,19 @@ export function ErrorBoundary({ retry }: { error: Error; retry: () => Promise<vo
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync().catch(() => undefined);
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null;
+
   return (
     <AuthProvider>
       <Stack>

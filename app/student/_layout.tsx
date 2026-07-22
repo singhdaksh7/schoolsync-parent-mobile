@@ -15,6 +15,8 @@ export default function StudentLayout() {
       <Stack.Screen name="marks" options={{ headerShown: false }} />
       <Stack.Screen name="report-cards" options={{ headerShown: false }} />
       <Stack.Screen name="announcements" options={{ headerShown: false }} />
+      <Stack.Screen name="homework" options={{ headerShown: false }} />
+      <Stack.Screen name="leave" options={{ headerShown: false }} />
     </Stack>
   );
 }

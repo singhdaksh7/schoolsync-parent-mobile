@@ -4,6 +4,7 @@ import { styles } from '@/lib/styles';
 import { formatDate } from '@/lib/format';
 import { downloadAuthenticatedPdf, openOrSharePdf } from '@/lib/pdf-download';
 import type { ReportCardItem } from '@/lib/types';
+import { EmptyState } from './EmptyState';
 
 /**
  * `pdfPathPrefix` differs by actor — Parent (`/api/parent/report-cards`) and
@@ -65,7 +66,9 @@ export function ReportCardsCard({
           </View>
         </View>
       ))}
-      {reportCards.length === 0 ? <Text style={styles.emptyText}>No published report cards yet.</Text> : null}
+      {reportCards.length === 0 ? (
+        <EmptyState icon="document-text-outline" title="No published report cards" message="Report cards will appear here once published." />
+      ) : null}
     </View>
   );
 }

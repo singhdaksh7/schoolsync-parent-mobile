@@ -3,16 +3,19 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
-export function renderHook<T>(useHookFn: () => T) {
+export function renderHook<T>(useHookFn: () => T, options?: { wrapper?: React.ComponentType<{ children: React.ReactNode }> }) {
   let value: T;
   function TestComponent() {
     value = useHookFn();
     return null;
   }
 
+  const Wrapper = options?.wrapper;
+  const element = Wrapper ? React.createElement(Wrapper, null, React.createElement(TestComponent)) : React.createElement(TestComponent);
+
   let renderer!: ReactTestRenderer;
   act(() => {
-    renderer = create(React.createElement(TestComponent));
+    renderer = create(element);
   });
 
   return {

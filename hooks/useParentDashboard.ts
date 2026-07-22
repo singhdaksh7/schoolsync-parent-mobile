@@ -3,6 +3,7 @@ import { apiRequest } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import { cacheKey, cachedFetch, CACHE_TTL, invalidatePrefix } from '@/lib/query-cache';
 import { uploadManagedFile, type PickedFile } from '@/lib/managed-upload';
+import { useParentSelection } from '@/lib/parent-selection-context';
 import { useForegroundRefresh } from './useForegroundRefresh';
 import type {
   AnnouncementItem,
@@ -58,8 +59,8 @@ async function loadStudentData(token: string, studentId: string, force: boolean)
 
 export function useParentDashboard() {
   const { token } = useAuth();
+  const { selectedStudentId, setSelectedStudentId } = useParentSelection();
   const [children, setChildren] = useState<Child[]>([]);
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [attendance, setAttendance] = useState<AttendanceItem[]>([]);
   const [marks, setMarks] = useState<MarkItem[]>([]);
   const [reportCards, setReportCards] = useState<ReportCardItem[]>([]);
@@ -146,8 +147,12 @@ export function useParentDashboard() {
   );
 
   useEffect(() => {
-    load(null);
-    // Runs once per mount (i.e. once per navigation into the parent tab); `load`
+    // Prefer whatever child is already selected in the shared
+    // ParentSelectionContext (e.g. the user switched children on the grid
+    // landing screen, then opened a tile) over silently resetting to the
+    // first child on every screen mount.
+    load(selectedStudentId);
+    // Runs once per mount (i.e. once per navigation into a parent screen); `load`
     // is stable per-token via useCallback.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);

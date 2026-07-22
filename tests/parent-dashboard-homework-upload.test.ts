@@ -7,6 +7,7 @@ const mockApiRequest = jest.fn();
 jest.mock('@/lib/api-client', () => ({ apiRequest: (...args: unknown[]) => mockApiRequest(...args) }));
 
 import { useParentDashboard } from '@/hooks/useParentDashboard';
+import { ParentSelectionProvider } from '@/lib/parent-selection-context';
 import type { HomeworkItem } from '@/lib/types';
 
 const CHILD = { id: 'stu-1', name: 'Aarav', rollNo: '12' };
@@ -62,7 +63,7 @@ describe('useParentDashboard — managed homework-submission upload (Parent Mobi
       .mockResolvedValueOnce({ timetable: [] })
       .mockResolvedValueOnce({ homework: [HOMEWORK_ITEM] });
 
-    const hook = renderHook(() => useParentDashboard());
+    const hook = renderHook(() => useParentDashboard(), { wrapper: ParentSelectionProvider });
     await hook.act(async () => {
       await Promise.resolve();
       await Promise.resolve();
@@ -89,7 +90,7 @@ describe('useParentDashboard — managed homework-submission upload (Parent Mobi
     mockInitialLoad();
     mockApiRequest.mockRejectedValueOnce(new Error('Upload quota exceeded'));
 
-    const hook = renderHook(() => useParentDashboard());
+    const hook = renderHook(() => useParentDashboard(), { wrapper: ParentSelectionProvider });
     await hook.act(async () => {
       await Promise.resolve();
       await Promise.resolve();

@@ -3,6 +3,11 @@
 // be set here (setupFiles), not in a beforeEach/beforeAll. https:// (not
 // http://) since api-client now fails closed on a non-https base URL.
 process.env.EXPO_PUBLIC_API_URL = 'https://localhost:3000';
+// Same module-level-const-at-import-time reasoning as EXPO_PUBLIC_API_URL
+// above — a real (non-empty) value here so SCHOOL_SLUG_CONFIG_ERROR is null
+// by default across the suite; tests exercising the missing-slug case reset
+// this explicitly (see tests/unified-login-payload.test.ts).
+process.env.EXPO_PUBLIC_SCHOOL_SLUG = 'test-school';
 
 // jest-expo doesn't auto-mock the AsyncStorage native module; use the
 // package's own official in-memory mock (per its Jest integration docs).

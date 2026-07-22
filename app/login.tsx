@@ -3,7 +3,7 @@ import { Redirect } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { BrandHeader } from '@/components/BrandHeader';
 import { Segmented } from '@/components/Segmented';
-import { API_CONFIG_ERROR } from '@/lib/api-client';
+import { API_CONFIG_ERROR, SCHOOL_SLUG_CONFIG_ERROR } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import { styles } from '@/lib/styles';
 import type { LoginMode } from '@/lib/types';
@@ -17,6 +17,11 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
 
   if (!restoring && token) return <Redirect href="/" />;
+
+  // Staff login doesn't need a school slug (resolved by the account's own
+  // email, not by tenant), so this only gates the Parent/Student mode.
+  const schoolConfigError = loginMode === 'PARENT_STUDENT' ? SCHOOL_SLUG_CONFIG_ERROR : null;
+  const configError = API_CONFIG_ERROR || schoolConfigError;
 
   async function handleLogin() {
     setError(null);
@@ -99,12 +104,13 @@ export default function LoginScreen() {
         />
 
         {API_CONFIG_ERROR ? <Text style={styles.errorText}>{API_CONFIG_ERROR}</Text> : null}
+        {schoolConfigError ? <Text style={styles.errorText}>{schoolConfigError}</Text> : null}
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Pressable
-          style={[styles.primaryButton, theme, API_CONFIG_ERROR && styles.primaryButtonDisabled]}
+          style={[styles.primaryButton, theme, configError && styles.primaryButtonDisabled]}
           onPress={handleLogin}
-          disabled={loading || Boolean(API_CONFIG_ERROR)}
+          disabled={loading || Boolean(configError)}
         >
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Login</Text>}
         </Pressable>

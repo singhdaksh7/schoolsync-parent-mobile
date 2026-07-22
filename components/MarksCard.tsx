@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { styles } from '@/lib/styles';
 import type { MarkItem } from '@/lib/types';
 import { InfoRow } from './InfoRow';
+import { EmptyState } from './EmptyState';
 
 export function MarksCard({ marks }: { marks: MarkItem[] }) {
   return (
@@ -16,7 +17,9 @@ export function MarksCard({ marks }: { marks: MarkItem[] }) {
           value={`${item.marks}/${item.exam.maxMarks}${item.grade ? ` · ${item.grade}` : ''}`}
         />
       ))}
-      {marks.length === 0 ? <Text style={styles.emptyText}>No marks published yet.</Text> : null}
+      {marks.length === 0 ? (
+        <EmptyState icon="school-outline" title="No marks published yet" message="Exam results will appear here once published." />
+      ) : null}
     </View>
   );
 }

@@ -1,64 +1,90 @@
 import React from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import { Redirect, useRouter } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
 import { useFeatureBootstrap } from '@/hooks/useFeatureBootstrap';
 import { computeVisibleStudentPortalModules } from '@/lib/student-portal-modules';
+import { GlassSurface } from '@/components/GlassSurface';
+import { LiquidBackground } from '@/components/LiquidBackground';
+import { StudentTopBar } from '@/components/StudentTopBar';
+import { StudentBottomNav } from '@/components/StudentBottomNav';
+import { Theme } from '@/constants/theme';
 import { styles } from '@/lib/styles';
 
-// Grid-menu entry point into the Student Portal (Profile/Timetable/
-// Attendance/Marks/Report Cards/Announcements). Only surfaces tiles that are
-// (a) backed by a real Student API route and (b) feature-enabled for the
-// school — see lib/student-portal-modules.ts for the (unit-tested)
-// visibility rule and a note on which reference-design menu items were
-// dropped for having no real backing endpoint.
+// Stitch "student-portal-menu": a full-screen glass panel — mini-profile
+// header, 2-col 8-tile module grid (all modules, unlike the Dashboard's
+// curated 6), footer Logout. Stitch renders this as a modal overlaid on a
+// blurred dashboard; Expo Router's Stack fully replaces the previous screen
+// on push (nothing renders "behind" a pushed screen), so the overlay effect
+// itself isn't reproducible — implemented as a normal full screen with the
+// same glass panel content instead, which is the closest faithful
+// equivalent for a push-based navigator.
 export default function StudentPortalScreen() {
-  const { role, branding, logout } = useAuth();
+  const { role, studentProfile, branding, logout } = useAuth();
   const { hasFeature } = useFeatureBootstrap();
   const router = useRouter();
 
   if (role !== 'STUDENT') return <Redirect href="/" />;
 
   const modules = computeVisibleStudentPortalModules(hasFeature);
+  const initial = (studentProfile?.name || 'S').trim().charAt(0).toUpperCase();
+  const className = studentProfile?.section?.class?.name;
+  const sectionName = studentProfile?.section?.name;
+  const classSection = className && sectionName ? `${className} - ${sectionName}` : className || sectionName || null;
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={[styles.subScreenHeader, { backgroundColor: branding.primaryColor }]}>
-        {/* No side-drawer navigation exists in this app yet. Until one is
-            built, the menu icon just returns to the main dashboard rather
-            than guessing at a destination that doesn't exist. */}
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Ionicons name="menu" size={24} color="#fff" />
-        </Pressable>
-        <Text style={[styles.subScreenHeaderTitle, { textAlign: 'center' }]}>Student Portal</Text>
-        <View style={styles.subScreenHeaderActions}>
-          <Pressable onPress={() => router.push('/student/portal-search')} hitSlop={10}>
-            <Ionicons name="search" size={22} color="#fff" />
-          </Pressable>
-          <Pressable onPress={logout} hitSlop={10}>
-            <Ionicons name="log-out-outline" size={24} color="#fff" />
-          </Pressable>
-        </View>
-      </View>
+    <View style={styles.liquidScreen}>
+      <LiquidBackground
+        blobs={[
+          { color: Theme.colors.primaryContainer, size: 200, top: -60, left: -60 },
+          { color: Theme.colors.secondaryContainer, size: 160, bottom: -40, right: -60 },
+        ]}
+      />
+      <StudentTopBar title="Menu" onBack={() => router.back()} color={branding.primaryColor} />
 
-      <View style={styles.portalGrid}>
-        {modules.map((module) => (
-          <Pressable key={module.key} style={styles.portalTile} onPress={() => router.push(module.route)}>
-            <View style={[styles.portalTileBadge, { backgroundColor: branding.primaryColor }]}>
-              <Ionicons name={module.icon as keyof typeof Ionicons.glyphMap} size={26} color="#fff" />
+      <ScrollView contentContainerStyle={styles.liquidScrollContent}>
+        <GlassSurface style={{ padding: Theme.spacing.lg, marginBottom: Theme.spacing.xl }} glow>
+          <View style={styles.liquidCardRow}>
+            <View style={[styles.liquidProfileAvatar, { backgroundColor: branding.primaryColor }]}>
+              <Text style={styles.liquidProfileAvatarText}>{initial}</Text>
             </View>
-            <Text style={styles.portalTileLabel}>{module.title}</Text>
-          </Pressable>
-        ))}
-
-        <Pressable key="logout" style={styles.portalTile} onPress={logout}>
-          <View style={[styles.portalTileBadge, { backgroundColor: branding.primaryColor }]}>
-            <Ionicons name="log-out-outline" size={26} color="#fff" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.studentName}>{studentProfile?.name || 'Student'}</Text>
+              <Text style={styles.studentClassLine}>{classSection || 'Class & section not provided'}</Text>
+              <View style={styles.liquidActiveBadge}>
+                <View style={styles.liquidActiveBadgeDot} />
+                <Text style={styles.liquidActiveBadgeText}>Active Student</Text>
+              </View>
+            </View>
           </View>
-          <Text style={styles.portalTileLabel}>Logout</Text>
+        </GlassSurface>
+
+        <View style={styles.liquidTileGrid}>
+          {modules.map((module) => (
+            <Pressable key={module.key} style={{ width: '47%' }} onPress={() => router.push(module.route as never)}>
+              <GlassSurface intensity={35} style={{ aspectRatio: 1, alignItems: 'center', justifyContent: 'center', gap: Theme.spacing.sm }}>
+                <View style={[styles.liquidTileIconWrap, { backgroundColor: branding.primaryColor + '1a' }]}>
+                  <Ionicons name={module.icon as keyof typeof Ionicons.glyphMap} size={24} color={branding.primaryColor} />
+                </View>
+                <Text style={styles.liquidTileLabel}>{module.title}</Text>
+              </GlassSurface>
+            </Pressable>
+          ))}
+        </View>
+
+        <Pressable
+          style={[styles.primaryButton, { backgroundColor: Theme.colors.errorContainer, marginTop: Theme.spacing.xl }]}
+          onPress={logout}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="log-out-outline" size={18} color={Theme.colors.error} />
+            <Text style={{ color: Theme.colors.error, fontWeight: '700' }}>Logout</Text>
+          </View>
         </Pressable>
-      </View>
-    </ScrollView>
+      </ScrollView>
+
+      <StudentBottomNav active="menu" color={branding.primaryColor} />
+    </View>
   );
 }
