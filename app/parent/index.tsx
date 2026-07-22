@@ -14,7 +14,9 @@ import { styles } from '@/lib/styles';
 // shared PortalGrid component. Only surfaces tiles backed by a real Parent
 // API route; see lib/parent-portal-modules.ts for the (unit-tested)
 // visibility rule and a note on what was dropped for having no real backing
-// endpoint (Leave, Profile).
+// endpoint (Leave, Profile). Transport (from the Transport Driver Portal
+// work) is its own tile/screen — see app/parent/transport.tsx — rather than
+// inline here, consistent with every other module on this grid.
 export default function ParentScreen() {
   const { role, branding, logout } = useAuth();
   const { hasFeature } = useFeatureBootstrap();

@@ -9,7 +9,7 @@ describe('computeVisibleParentPortalModules — no dead tiles', () => {
   it('shows every module when all its features are enabled', () => {
     const modules = computeVisibleParentPortalModules(features(['FEES', 'HOMEWORK', 'ATTENDANCE', 'REPORT_CARDS']));
     expect(modules.map((m) => m.key).sort()).toEqual(
-      ['fees', 'homework', 'attendance', 'marks', 'report-cards', 'timetable', 'announcements'].sort()
+      ['fees', 'homework', 'attendance', 'marks', 'report-cards', 'timetable', 'announcements', 'transport'].sort()
     );
   });
 
@@ -33,12 +33,13 @@ describe('computeVisibleParentPortalModules — no dead tiles', () => {
     expect(modules.map((m) => m.key)).not.toContain('report-cards');
   });
 
-  it('Marks, Timetable, and Announcements have no feature gate — they show with zero features enabled', () => {
+  it('Marks, Timetable, Announcements, and Transport have no feature gate — they show with zero features enabled', () => {
     const modules = computeVisibleParentPortalModules(features([]));
     const keys = modules.map((m) => m.key);
     expect(keys).toContain('marks');
     expect(keys).toContain('timetable');
     expect(keys).toContain('announcements');
+    expect(keys).toContain('transport');
   });
 
   it('never includes a Leave or Profile tile — no backing Parent API route exists for either', () => {
@@ -58,6 +59,7 @@ describe('computeVisibleParentPortalModules — no dead tiles', () => {
       '/parent/report-cards',
       '/parent/timetable',
       '/parent/announcements',
+      '/parent/transport',
     ];
     for (const module of modules) expect(knownRoutes).toContain(module.route);
   });

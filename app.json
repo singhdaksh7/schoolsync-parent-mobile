@@ -6,14 +6,20 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "SchoolSync uses your location to share a driver's live position with the school and parents while a trip is active.",
+        "NSLocationWhenInUseUsageDescription": "SchoolSync uses your location to share a driver's live position with the school and parents while a trip is active.",
+        "UIBackgroundModes": ["location"]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#1976D2",
         "foregroundImage": "./assets/images/icon.png"
       },
-      "package": "com.schoolsync.parent"
+      "package": "com.schoolsync.parent",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "ACCESS_BACKGROUND_LOCATION", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_LOCATION"]
     },
     "web": {
       "output": "static"
@@ -28,7 +34,17 @@
       "expo-font",
       "expo-router",
       "expo-web-browser",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "SchoolSync uses your location to share a driver's live position with the school and parents while a trip is active.",
+          "locationAlwaysPermission": "SchoolSync uses your location in the background to share a driver's live position with the school and parents while a trip is active.",
+          "locationWhenInUsePermission": "SchoolSync uses your location to share a driver's live position with the school and parents while a trip is active.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
     ]
   }
 }

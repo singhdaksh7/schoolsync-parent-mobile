@@ -16,7 +16,7 @@
 import type { FeatureFlagKey } from './types';
 
 export type TeacherPortalModule = {
-  key: 'profile' | 'schedule' | 'attendance' | 'work' | 'substitutions' | 'operations';
+  key: 'profile' | 'schedule' | 'attendance' | 'work' | 'substitutions' | 'transport' | 'operations';
   title: string;
   icon: string;
   route: string;
@@ -28,6 +28,10 @@ const BASE_MODULES: (TeacherPortalModule & { feature: FeatureFlagKey | null })[]
   { key: 'attendance', title: 'Attendance', icon: 'checkmark-done-circle-outline', route: '/teacher/attendance', feature: 'ATTENDANCE' },
   { key: 'work', title: 'Work', icon: 'briefcase-outline', route: '/teacher/work', feature: null },
   { key: 'substitutions', title: 'Substitutions', icon: 'swap-horizontal-outline', route: '/teacher/substitutions', feature: null },
+  // Transport Driver Portal (Phase 2C) — already has its own bottom tab (see
+  // app/teacher/_layout.tsx); also surfaced here so it's reachable from the
+  // grid/search like every other tab-backed module.
+  { key: 'transport', title: 'Transport', icon: 'bus-outline', route: '/teacher/transport', feature: null },
 ];
 
 export function computeVisibleTeacherPortalModules(

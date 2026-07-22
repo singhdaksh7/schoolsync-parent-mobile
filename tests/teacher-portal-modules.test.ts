@@ -8,7 +8,9 @@ function features(enabled: FeatureFlagKey[]) {
 describe('computeVisibleTeacherPortalModules — no dead tiles', () => {
   it('shows every base module (and no Operations tile) when ATTENDANCE is enabled and the teacher is not Operations Head', () => {
     const modules = computeVisibleTeacherPortalModules(features(['ATTENDANCE']), false);
-    expect(modules.map((m) => m.key).sort()).toEqual(['profile', 'schedule', 'attendance', 'work', 'substitutions'].sort());
+    expect(modules.map((m) => m.key).sort()).toEqual(
+      ['profile', 'schedule', 'attendance', 'work', 'substitutions', 'transport'].sort()
+    );
   });
 
   it('hides Attendance when the ATTENDANCE feature is disabled', () => {
@@ -16,13 +18,14 @@ describe('computeVisibleTeacherPortalModules — no dead tiles', () => {
     expect(modules.map((m) => m.key)).not.toContain('attendance');
   });
 
-  it('Profile, Schedule, Work, and Substitutions have no feature gate — they show with zero features enabled', () => {
+  it('Profile, Schedule, Work, Substitutions, and Transport have no feature gate — they show with zero features enabled', () => {
     const modules = computeVisibleTeacherPortalModules(features([]), false);
     const keys = modules.map((m) => m.key);
     expect(keys).toContain('profile');
     expect(keys).toContain('schedule');
     expect(keys).toContain('work');
     expect(keys).toContain('substitutions');
+    expect(keys).toContain('transport');
   });
 
   it('adds an Operations tile only when the teacher is the effective Operations Head', () => {
@@ -40,6 +43,7 @@ describe('computeVisibleTeacherPortalModules — no dead tiles', () => {
       '/teacher/attendance',
       '/teacher/work',
       '/teacher/substitutions',
+      '/teacher/transport',
       '/teacher/operations',
     ];
     for (const module of modules) expect(knownRoutes).toContain(module.route);

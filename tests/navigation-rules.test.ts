@@ -24,6 +24,14 @@ describe('resolveLandingRoute — root redirect gate decision logic', () => {
     expect(resolveLandingRoute({ token: 't', role: 'VICE_PRINCIPAL', mobileAppEnabled: true })).toBe('/admin');
   });
 
+  it('routes DRIVER actors to /driver once MOBILE_APP is enabled', () => {
+    expect(resolveLandingRoute({ token: 't', role: 'DRIVER', mobileAppEnabled: true })).toBe('/driver');
+  });
+
+  it('sends a DRIVER actor to /mobile-unavailable when MOBILE_APP resolves to false', () => {
+    expect(resolveLandingRoute({ token: 't', role: 'DRIVER', mobileAppEnabled: false })).toBe('/mobile-unavailable');
+  });
+
   it('defaults an unrecognized role to the Parent route (matches normalizeRole\'s PARENT fallback)', () => {
     expect(resolveLandingRoute({ token: 't', role: 'GUARDIAN', mobileAppEnabled: true })).toBe('/parent');
   });

@@ -12,7 +12,7 @@
 import type { FeatureFlagKey } from './types';
 
 export type ParentPortalModule = {
-  key: 'fees' | 'homework' | 'attendance' | 'marks' | 'report-cards' | 'timetable' | 'announcements';
+  key: 'fees' | 'homework' | 'attendance' | 'marks' | 'report-cards' | 'timetable' | 'announcements' | 'transport';
   title: string;
   icon: string;
   route: string;
@@ -26,6 +26,9 @@ const MODULES: (ParentPortalModule & { feature: FeatureFlagKey | null })[] = [
   { key: 'report-cards', title: 'Report Cards', icon: 'document-text-outline', route: '/parent/report-cards', feature: 'REPORT_CARDS' },
   { key: 'timetable', title: 'Timetable', icon: 'calendar-outline', route: '/parent/timetable', feature: null },
   { key: 'announcements', title: 'Announcements', icon: 'megaphone-outline', route: '/parent/announcements', feature: null },
+  // Transport Driver Portal (Phase 2C) — no feature flag gate, same as the
+  // Driver/Teacher transport tabs; the backend always answers this route.
+  { key: 'transport', title: 'Transport', icon: 'bus-outline', route: '/parent/transport', feature: null },
 ];
 
 export function computeVisibleParentPortalModules(hasFeature: (key: FeatureFlagKey) => boolean): ParentPortalModule[] {
