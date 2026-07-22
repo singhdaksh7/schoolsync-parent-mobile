@@ -1,53 +1,53 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
+// Design tokens for the "Academic Clarity" design system (Stitch project
+// "Unified School Management Hub"). Replaces the unused create-expo-app
+// boilerplate that used to live here.
 
-import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
-export const Colors = {
-  light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+export const Theme = {
+  colors: {
+    background: '#f7f9ff',
+    surface: '#f7f9ff',
+    surfaceDim: '#d7dae0',
+    surfaceBright: '#f7f9ff',
+    surfaceContainerLowest: '#ffffff',
+    surfaceContainerLow: '#f1f4fa',
+    surfaceContainer: '#ebeef4',
+    surfaceContainerHigh: '#e5e8ee',
+    surfaceContainerHighest: '#dfe3e8',
+    onSurface: '#181c20',
+    onSurfaceVariant: '#414754',
+    inverseSurface: '#2d3135',
+    inverseOnSurface: '#eef1f7',
+    outline: '#727785',
+    outlineVariant: '#c1c6d6',
+    primary: '#005bbf',
+    onPrimary: '#ffffff',
+    primaryContainer: '#1a73e8',
+    onPrimaryContainer: '#ffffff',
+    secondary: '#005ac1',
+    onSecondary: '#ffffff',
+    secondaryContainer: '#4d8efe',
+    onSecondaryContainer: '#00285c',
+    tertiary: '#5c5e60',
+    onTertiary: '#ffffff',
+    error: '#ba1a1a',
+    onError: '#ffffff',
+    errorContainer: '#ffdad6',
+    onErrorContainer: '#93000a',
+    success: '#166534',
+    successContainer: '#dcfce7',
+    warning: '#b45309',
+    warningContainer: '#fef3c7',
   },
-  dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+  typography: {
+    displayLg: { fontFamily: 'Inter_700Bold', fontSize: 48, fontWeight: '700' as const, lineHeight: 56, letterSpacing: -0.4 },
+    headlineLg: { fontFamily: 'Inter_600SemiBold', fontSize: 32, fontWeight: '600' as const, lineHeight: 40, letterSpacing: -0.2 },
+    headlineMd: { fontFamily: 'Inter_600SemiBold', fontSize: 24, fontWeight: '600' as const, lineHeight: 32 },
+    titleLg: { fontFamily: 'Inter_500Medium', fontSize: 20, fontWeight: '500' as const, lineHeight: 28 },
+    bodyLg: { fontFamily: 'Inter_400Regular', fontSize: 16, fontWeight: '400' as const, lineHeight: 24 },
+    bodyMd: { fontFamily: 'Inter_400Regular', fontSize: 14, fontWeight: '400' as const, lineHeight: 20 },
+    labelMd: { fontFamily: 'Inter_600SemiBold', fontSize: 12, fontWeight: '600' as const, lineHeight: 16, letterSpacing: 0.6 },
+    labelSm: { fontFamily: 'Inter_500Medium', fontSize: 11, fontWeight: '500' as const, lineHeight: 16 },
   },
+  spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 },
+  radii: { sm: 4, DEFAULT: 8, md: 12, lg: 16, xl: 24, full: 9999 },
 };
-
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});

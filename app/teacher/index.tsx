@@ -13,6 +13,7 @@ import { useTeacherSchedule } from '@/hooks/useTeacherSchedule';
 import { useTeacherSelfAttendance } from '@/hooks/useTeacherSelfAttendance';
 import { computeVisibleTeacherPortalModules } from '@/lib/teacher-portal-modules';
 import { formatDate, formatStatus } from '@/lib/format';
+import { EmptyState } from '@/components/EmptyState';
 import { styles } from '@/lib/styles';
 
 function todayBackendDayOfWeek() {
@@ -120,7 +121,9 @@ export default function TeacherHomeScreen() {
                 </View>
               </View>
             ))}
-            {todaySlots.length === 0 ? <Text style={styles.emptyText}>No periods scheduled for today.</Text> : null}
+            {todaySlots.length === 0 ? (
+              <EmptyState icon="time-outline" title="No periods today" message="No periods scheduled for today." />
+            ) : null}
           </View>
 
           <View style={[styles.card, styles.lastCard]}>

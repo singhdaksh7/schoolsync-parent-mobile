@@ -1,10 +1,11 @@
 import React from 'react';
 import { Redirect, useRouter } from 'expo-router';
-import { ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
+import { RefreshControl, ScrollView } from 'react-native';
 import { useAuth } from '@/lib/auth-context';
 import { useParentDashboard } from '@/hooks/useParentDashboard';
 import { TimetableCard } from '@/components/TimetableCard';
 import { SubScreenHeader } from '@/components/SubScreenHeader';
+import { CardSkeleton } from '@/components/Skeleton';
 import { styles } from '@/lib/styles';
 
 export default function ParentTimetableScreen() {
@@ -21,7 +22,7 @@ export default function ParentTimetableScreen() {
     >
       <SubScreenHeader title="Timetable" color={branding.primaryColor} onBack={() => router.back()} />
       {dashboard.loadingData && dashboard.timetable.length === 0 ? (
-        <ActivityIndicator style={styles.loaderWrap} size="large" color={branding.primaryColor} />
+        <CardSkeleton rows={5} />
       ) : (
         <TimetableCard timetable={dashboard.timetable} />
       )}

@@ -4,6 +4,7 @@ import { styles } from '@/lib/styles';
 import { formatDate, formatDateTime, formatStatus } from '@/lib/format';
 import type { AttendanceItem, HomeworkItem, StudentAttendanceSummary, TimetableItem } from '@/lib/types';
 import { InfoRow } from './InfoRow';
+import { EmptyState } from './EmptyState';
 
 export function StudentAttendanceCard({
   attendance,
@@ -28,7 +29,9 @@ export function StudentAttendanceCard({
       {attendance.slice(0, 8).map((item) => (
         <InfoRow key={item.id} title={formatDate(item.date)} value={formatStatus(item.status)} />
       ))}
-      {attendance.length === 0 ? <Text style={styles.emptyText}>No attendance records in the last 30 days.</Text> : null}
+      {attendance.length === 0 ? (
+        <EmptyState icon="checkmark-done-outline" title="No attendance records" message="Records from the last 30 days will appear here." />
+      ) : null}
     </View>
   );
 }
@@ -53,7 +56,9 @@ export function StudentHomeworkCard({ homework }: { homework: HomeworkItem[] }) 
           </View>
         </View>
       ))}
-      {homework.length === 0 ? <Text style={styles.emptyText}>No homework assigned.</Text> : null}
+      {homework.length === 0 ? (
+        <EmptyState icon="book-outline" title="No homework assigned" message="New assignments will show up here." />
+      ) : null}
     </View>
   );
 }
@@ -73,7 +78,9 @@ export function StudentTodayTimetableCard({ timetable, color }: { timetable: Tim
           </View>
         </View>
       ))}
-      {timetable.length === 0 ? <Text style={styles.emptyText}>No periods scheduled for today.</Text> : null}
+      {timetable.length === 0 ? (
+        <EmptyState icon="time-outline" title="No periods today" message="Check back tomorrow for your schedule." />
+      ) : null}
     </View>
   );
 }

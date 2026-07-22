@@ -767,7 +767,7 @@ export type JobStatusResponse = {
 export const DEFAULT_BRANDING: Branding = {
   schoolName: 'SchoolSync',
   logoUrl: null,
-  primaryColor: '#1976D2',
+  primaryColor: '#005bbf',
   secondaryColor: '#0f172a',
   appName: 'SchoolSync',
   poweredBySchoolSync: false,

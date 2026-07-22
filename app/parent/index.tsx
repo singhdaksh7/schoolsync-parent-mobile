@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useFeatureBootstrap } from '@/hooks/useFeatureBootstrap';
 import { useParentDashboard } from '@/hooks/useParentDashboard';
 import { computeVisibleParentPortalModules } from '@/lib/parent-portal-modules';
+import { EmptyState } from '@/components/EmptyState';
 import { styles } from '@/lib/styles';
 
 // Grid-menu landing screen for the Parent Portal — mirrors the Student
@@ -38,7 +39,7 @@ export default function ParentScreen() {
         <View style={[styles.card, { marginBottom: 0 }]}>
           <Text style={styles.sectionTitle}>Children</Text>
           {dashboard.children.length === 0 ? (
-            <Text style={styles.emptyText}>No linked students found for this account.</Text>
+            <EmptyState icon="people-outline" title="No linked students" message="No linked students found for this account." />
           ) : null}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {dashboard.children.map((child) => {

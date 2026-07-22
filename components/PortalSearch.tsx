@@ -2,7 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SubScreenHeader } from '@/components/SubScreenHeader';
+import { EmptyState } from '@/components/EmptyState';
 import { styles } from '@/lib/styles';
+import { Theme } from '@/constants/theme';
 import type { PortalModule } from './PortalGrid';
 
 /**
@@ -42,13 +44,13 @@ export function PortalSearch({
 
       <View style={styles.searchInputWrap}>
         <View style={styles.searchInputRow}>
-          <Ionicons name="search" size={18} color="#8a94a6" />
+          <Ionicons name="search" size={18} color={Theme.colors.onSurfaceVariant} />
           <TextInput
             style={styles.searchInput}
             value={query}
             onChangeText={setQuery}
             placeholder="Search"
-            placeholderTextColor="#8a94a6"
+            placeholderTextColor={Theme.colors.onSurfaceVariant}
             autoCapitalize="none"
             autoCorrect={false}
           />
@@ -64,7 +66,7 @@ export function PortalSearch({
             <Text style={styles.searchRowLabel}>{item.title}</Text>
           </Pressable>
         ))}
-        {filtered.length === 0 ? <Text style={[styles.emptyText, { padding: 16 }]}>No matching items.</Text> : null}
+        {filtered.length === 0 ? <EmptyState icon="search-outline" title="No matching items" message="Try a different search term." /> : null}
       </ScrollView>
     </View>
   );

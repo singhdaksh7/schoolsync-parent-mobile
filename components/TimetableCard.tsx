@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { styles } from '@/lib/styles';
 import { DAY_NAMES, type TimetableItem } from '@/lib/types';
 import { InfoRow } from './InfoRow';
+import { EmptyState } from './EmptyState';
 
 export function TimetableCard({ timetable, title = 'Timetable' }: { timetable: TimetableItem[]; title?: string }) {
   return (
@@ -16,7 +17,9 @@ export function TimetableCard({ timetable, title = 'Timetable' }: { timetable: T
           value={slot.subject || 'Subject TBD'}
         />
       ))}
-      {timetable.length === 0 ? <Text style={styles.emptyText}>No timetable available.</Text> : null}
+      {timetable.length === 0 ? (
+        <EmptyState icon="calendar-clear-outline" title="No timetable available" message="Your class schedule will appear here." />
+      ) : null}
     </View>
   );
 }

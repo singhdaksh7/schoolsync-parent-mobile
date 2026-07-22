@@ -1,25 +1,61 @@
 import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { styles } from '@/lib/styles';
+import { Theme } from '@/constants/theme';
 import { useAuth } from '@/lib/auth-context';
+
+type SystemStateVariant = 'crash' | 'offline' | 'not-found';
+
+const VARIANT_COPY: Record<SystemStateVariant, { icon: keyof typeof Ionicons.glyphMap; title: string; message: string }> = {
+  crash: {
+    icon: 'alert-circle-outline',
+    title: "SchoolSync couldn't load this screen.",
+    message: 'Try again, or sign out and back in if the problem continues.',
+  },
+  offline: {
+    icon: 'cloud-offline-outline',
+    title: "You're offline.",
+    message: 'Check your connection and try again.',
+  },
+  'not-found': {
+    icon: 'search-outline',
+    title: "We couldn't find that.",
+    message: 'It may have been removed, or the link is out of date.',
+  },
+};
 
 /**
  * Rendered in place of a crashed screen (see the `ErrorBoundary` export in
- * each actor layout / the root layout). Deliberately shows nothing about the
- * error itself — no stack trace, no API response body, no token — since this
- * can be reached from any authenticated screen.
+ * each actor layout / the root layout), or for other full-screen system
+ * states (offline, not-found) matching the Stitch "System States" screen.
+ * Deliberately shows nothing about the error itself — no stack trace, no
+ * API response body, no token — since this can be reached from any
+ * authenticated screen.
  */
-export function ScreenErrorFallback({ onRetry, onSignOut }: { onRetry: () => void; onSignOut: () => void }) {
+export function ScreenErrorFallback({
+  onRetry,
+  onSignOut,
+  variant = 'crash',
+}: {
+  onRetry: () => void;
+  onSignOut: () => void;
+  variant?: SystemStateVariant;
+}) {
+  const copy = VARIANT_COPY[variant];
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
       <View style={[styles.card, styles.lastCard]}>
-        <Text style={styles.sectionTitle}>SchoolSync couldn&apos;t load this screen.</Text>
-        <Text style={styles.emptyText}>Try again, or sign out and back in if the problem continues.</Text>
-        <Pressable style={[styles.primaryButton, { backgroundColor: '#1976D2', marginTop: 14 }]} onPress={onRetry}>
+        <View style={styles.systemStateIconWrap}>
+          <Ionicons name={copy.icon} size={30} color={Theme.colors.error} />
+        </View>
+        <Text style={[styles.sectionTitle, { textAlign: 'center' }]}>{copy.title}</Text>
+        <Text style={[styles.emptyText, { textAlign: 'center' }]}>{copy.message}</Text>
+        <Pressable style={[styles.primaryButton, { marginTop: 14 }]} onPress={onRetry}>
           <Text style={styles.primaryButtonText}>Try Again</Text>
         </Pressable>
-        <Pressable style={[styles.smallButton, { alignSelf: 'flex-start', marginTop: 10 }]} onPress={onSignOut}>
+        <Pressable style={[styles.smallButton, { alignSelf: 'center', marginTop: 10 }]} onPress={onSignOut}>
           <Text style={styles.smallButtonText}>Sign Out</Text>
         </Pressable>
       </View>
@@ -44,5 +80,5 @@ export function ActorErrorBoundary({ retry }: { error: Error; retry: () => Promi
     router.replace('/login');
   };
 
-  return <ScreenErrorFallback onRetry={() => void retry()} onSignOut={handleSignOut} />;
+  return <ScreenErrorFallback onRetry={() => void retry()} onSignOut={handleSignOut} variant="crash" />;
 }

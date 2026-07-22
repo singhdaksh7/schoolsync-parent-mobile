@@ -1,10 +1,11 @@
 import React from 'react';
 import { Redirect, useRouter } from 'expo-router';
-import { ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
+import { RefreshControl, ScrollView } from 'react-native';
 import { useAuth } from '@/lib/auth-context';
 import { useParentDashboard } from '@/hooks/useParentDashboard';
 import { AnnouncementsCard } from '@/components/AnnouncementsCard';
 import { SubScreenHeader } from '@/components/SubScreenHeader';
+import { CardSkeleton } from '@/components/Skeleton';
 import { styles } from '@/lib/styles';
 
 export default function ParentAnnouncementsScreen() {
@@ -21,7 +22,7 @@ export default function ParentAnnouncementsScreen() {
     >
       <SubScreenHeader title="Announcements" color={branding.primaryColor} onBack={() => router.back()} />
       {dashboard.loadingData && dashboard.announcements.length === 0 ? (
-        <ActivityIndicator style={styles.loaderWrap} size="large" color={branding.primaryColor} />
+        <CardSkeleton rows={3} />
       ) : (
         <AnnouncementsCard announcements={dashboard.announcements} />
       )}

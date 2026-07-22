@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { styles } from '@/lib/styles';
+import { Theme } from '@/constants/theme';
 import { formatDate, formatStatus } from '@/lib/format';
 import type { StudentLeave } from '@/hooks/useStudentLeave';
+import { EmptyState } from './EmptyState';
 
 export function StudentLeaveCard({
   leaves,
@@ -52,16 +54,16 @@ export function StudentLeaveCard({
       {showForm ? (
         <View style={{ marginTop: 10 }}>
           <Text style={styles.label}>Leave Type</Text>
-          <TextInput style={styles.input} placeholder="e.g. Sick, Family" placeholderTextColor="#8a8a8a" value={leaveType} onChangeText={setLeaveType} />
+          <TextInput style={styles.input} placeholder="e.g. Sick, Family" placeholderTextColor={Theme.colors.onSurfaceVariant} value={leaveType} onChangeText={setLeaveType} />
 
           <Text style={styles.label}>From Date (YYYY-MM-DD)</Text>
-          <TextInput style={styles.input} placeholder="2026-07-15" placeholderTextColor="#8a8a8a" value={fromDate} onChangeText={setFromDate} />
+          <TextInput style={styles.input} placeholder="2026-07-15" placeholderTextColor={Theme.colors.onSurfaceVariant} value={fromDate} onChangeText={setFromDate} />
 
           <Text style={styles.label}>To Date (YYYY-MM-DD)</Text>
-          <TextInput style={styles.input} placeholder="2026-07-18" placeholderTextColor="#8a8a8a" value={toDate} onChangeText={setToDate} />
+          <TextInput style={styles.input} placeholder="2026-07-18" placeholderTextColor={Theme.colors.onSurfaceVariant} value={toDate} onChangeText={setToDate} />
 
           <Text style={styles.label}>Reason</Text>
-          <TextInput style={styles.input} placeholder="Reason for leave" placeholderTextColor="#8a8a8a" value={reason} onChangeText={setReason} />
+          <TextInput style={styles.input} placeholder="Reason for leave" placeholderTextColor={Theme.colors.onSurfaceVariant} value={reason} onChangeText={setReason} />
 
           <Pressable style={[styles.primaryButton, { backgroundColor: color }, creating && styles.primaryButtonDisabled]} onPress={handleCreate} disabled={creating}>
             {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Submit</Text>}
@@ -80,7 +82,9 @@ export function StudentLeaveCard({
           <Text style={styles.statusPill}>{formatStatus(leave.status)}</Text>
         </View>
       ))}
-      {leaves.length === 0 && !loading ? <Text style={styles.emptyText}>No leave requests yet.</Text> : null}
+      {leaves.length === 0 && !loading ? (
+        <EmptyState icon="calendar-outline" title="No leave requests yet" message="Requests you submit will appear here." />
+      ) : null}
     </View>
   );
 }

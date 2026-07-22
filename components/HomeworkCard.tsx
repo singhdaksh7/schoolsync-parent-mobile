@@ -5,6 +5,7 @@ import { styles } from '@/lib/styles';
 import { formatDateTime } from '@/lib/format';
 import type { PickedFile } from '@/lib/managed-upload';
 import type { HomeworkItem } from '@/lib/types';
+import { EmptyState } from './EmptyState';
 
 export function HomeworkCard(props: {
   homework: HomeworkItem[];
@@ -55,7 +56,9 @@ export function HomeworkCard(props: {
           </View>
         </View>
       ))}
-      {props.homework.length === 0 ? <Text style={styles.emptyText}>No homework assigned.</Text> : null}
+      {props.homework.length === 0 ? (
+        <EmptyState icon="book-outline" title="No homework assigned" message="New assignments will show up here." />
+      ) : null}
     </View>
   );
 }
