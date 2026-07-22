@@ -3,19 +3,19 @@ import { Redirect, useRouter } from 'expo-router';
 import { PortalSearch } from '@/components/PortalSearch';
 import { useAuth } from '@/lib/auth-context';
 import { useFeatureBootstrap } from '@/hooks/useFeatureBootstrap';
-import { computeVisibleStudentPortalModules } from '@/lib/student-portal-modules';
+import { computeVisibleParentPortalModules } from '@/lib/parent-portal-modules';
 
-// Filterable list rendering the same Student Portal tiles shown on
-// app/student/index.tsx's grid — see lib/student-portal-modules.ts for the
+// Filterable list rendering the same Parent Portal tiles shown in
+// app/parent/index.tsx's grid — see lib/parent-portal-modules.ts for the
 // shared, unit-tested source of truth for what's real vs. dropped.
-export default function StudentPortalSearchScreen() {
+export default function ParentPortalSearchScreen() {
   const { role, branding, logout } = useAuth();
   const { hasFeature } = useFeatureBootstrap();
   const router = useRouter();
 
-  if (role !== 'STUDENT') return <Redirect href="/" />;
+  if (role !== 'PARENT') return <Redirect href="/" />;
 
-  const modules = computeVisibleStudentPortalModules(hasFeature);
+  const modules = computeVisibleParentPortalModules(hasFeature);
 
   return (
     <PortalSearch
