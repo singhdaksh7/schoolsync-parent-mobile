@@ -17,6 +17,7 @@ export default function ParentLayout() {
         <Stack.Screen name="report-cards" options={{ headerShown: false }} />
         <Stack.Screen name="timetable" options={{ headerShown: false }} />
         <Stack.Screen name="announcements" options={{ headerShown: false }} />
+        <Stack.Screen name="transport" options={{ headerShown: false }} />
       </Stack>
     </ParentSelectionProvider>
   );

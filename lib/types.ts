@@ -830,32 +830,52 @@ export type TransportLocation = {
 // per-stop student counts leak into the parent/teacher live view).
 export type TransportStopRef = { id: string; name: string; sequence: number };
 
-// GET /api/mobile/parent/transport/trip and
-// GET /api/mobile/teacher/transport/trips share this trip shape. `location`
-// is present only while `status === 'ACTIVE'`; an ended trip carries only
-// metadata (start/end timestamps), never coordinates. `currentStop`/
-// `nextStop`/`stops` are optional — the app must render sensibly if the
-// backend omits them and fall back to a location-only ("updated Ns ago")
-// display.
-export type TransportTrip = {
-  id: string;
-  status: TripStatus;
-  startedAt: string;
-  endedAt: string | null;
+export type TransportRouteRef = { id: string; name: string };
+
+// Prisma's real Trip.status enum (SCHEDULED/ACTIVE/COMPLETED/CANCELLED) —
+// NOT the same as the Driver Portal's own TripStatus ('ACTIVE'|'ENDED'
+// above), which is what the driver's own start/end actions return.
+// NO_ACTIVE_TRIP is a synthetic status the parent endpoint sends (never a
+// real Trip row) when a child currently has no trip — see
+// ParentTransportChild.trip below.
+export type LiveTripStatus = 'SCHEDULED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+
+// GET /api/mobile/parent/transport/trip — one entry per linked child, since
+// a parent can have multiple children potentially on different routes/buses.
+// `trip` is either a real trip (id present) or the NO_ACTIVE_TRIP sentinel
+// (id/startedAt/endedAt all null) — there is no "trip ended at HH:MM" signal
+// anywhere in this response, since an ended trip collapses straight back to
+// the sentinel with no endedAt. Treat NO_ACTIVE_TRIP as "no active trip",
+// never as an ended trip with a hidden end time.
+export type ParentTransportChild = {
+  studentId: string;
+  studentName: string;
+  route: TransportRouteRef;
+  stop: TransportStopRef | null;
+  trip:
+    | { id: string; status: LiveTripStatus; startedAt: string; endedAt: string | null }
+    | { id: null; status: 'NO_ACTIVE_TRIP'; startedAt: null; endedAt: null };
   location: TransportLocation | null;
-  currentStop?: TransportStopRef | null;
-  nextStop?: TransportStopRef | null;
-  stops?: TransportStopRef[];
-  routeName?: string | null;
 };
 
 export type ParentTransportTripResponse = {
-  trip: TransportTrip | null;
-  student?: { id: string; name: string };
+  children: ParentTransportChild[];
+};
+
+// GET /api/mobile/teacher/transport/trips — already scoped server-side to
+// the teacher's sections/routes; every entry here is a real, currently
+// active trip (no NO_ACTIVE_TRIP sentinel in this response).
+export type TeacherTransportTrip = {
+  id: string;
+  status: LiveTripStatus;
+  startedAt: string;
+  endedAt: string | null;
+  route: TransportRouteRef;
+  location: TransportLocation | null;
 };
 
 export type TeacherTransportTripsResponse = {
-  trips: TransportTrip[];
+  trips: TeacherTransportTrip[];
 };
 
 export const DEFAULT_BRANDING: Branding = {

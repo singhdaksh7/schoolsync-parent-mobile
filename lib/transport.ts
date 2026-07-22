@@ -6,7 +6,7 @@
 // module or its consumers. Location is only ever present while a trip is
 // ACTIVE — there is no location-history endpoint anywhere in this system,
 // so nothing here should ever try to reconstruct a path or a trail.
-import type { DriverStop, TransportStopRef, TripStatus } from './types';
+import type { DriverStop, LiveTripStatus, TripStatus } from './types';
 
 /** Formats "how long ago" a live-location timestamp was received, e.g.
  * "updated just now" / "updated 8s ago" / "updated 3m ago" / "updated 2h ago".
@@ -39,41 +39,30 @@ export function totalStudentCount(stops: DriverStop[]): number {
   return stops.reduce((sum, stop) => sum + (stop.studentCount || 0), 0);
 }
 
-/**
- * Derives the current and next stop for a text-only live-trip display.
- * Works from a sequence-ordered stop list plus a `currentStopId` — this is
- * intentionally generic so it can be reused wherever a stop list + a
- * "we are here" id shows up (driver's own route context, or a parent/teacher
- * trip response that happens to include `stops` + `currentStop`).
- *
- * - No stops -> both null.
- * - No currentStopId (trip hasn't reached a stop yet, or the field is
- *   simply absent from the response) -> current is null, next is the first
- *   stop in sequence.
- * - currentStopId not found in the list -> treated the same as "not
- *   started yet" rather than throwing, since a route can change between
- *   when a trip started and when this renders.
- * - currentStopId is the last stop -> next is null (end of route).
- */
-export function deriveCurrentAndNextStop(
-  stops: TransportStopRef[],
-  currentStopId: string | null | undefined
-): { currentStop: TransportStopRef | null; nextStop: TransportStopRef | null } {
-  const sorted = sortStopsBySequence(stops);
-  if (sorted.length === 0) return { currentStop: null, nextStop: null };
-
-  if (!currentStopId) return { currentStop: null, nextStop: sorted[0] };
-
-  const index = sorted.findIndex((stop) => stop.id === currentStopId);
-  if (index === -1) return { currentStop: null, nextStop: sorted[0] };
-
-  return { currentStop: sorted[index], nextStop: sorted[index + 1] ?? null };
-}
-
-/** Text-only trip status line for a driver/parent/teacher screen. */
+/** Text-only trip status line for the driver's own start/end screen. */
 export function tripStatusLabel(trip: { status: TripStatus } | null | undefined): string {
   if (!trip) return 'No active trip';
   return trip.status === 'ACTIVE' ? 'Trip in progress' : 'Trip ended';
+}
+
+/** Text-only trip status line for the parent/teacher live-trip view, which
+ * reads Prisma's real Trip.status enum (plus the parent endpoint's
+ * synthetic NO_ACTIVE_TRIP sentinel) rather than the driver's own
+ * 'ACTIVE'|'ENDED' status. There is no endedAt on NO_ACTIVE_TRIP, so this
+ * never attempts an "ended at HH:MM" label — just "no active trip". */
+export function liveTripStatusLabel(status: LiveTripStatus | 'NO_ACTIVE_TRIP'): string {
+  switch (status) {
+    case 'ACTIVE':
+      return 'Trip in progress';
+    case 'SCHEDULED':
+      return 'Trip scheduled';
+    case 'COMPLETED':
+      return 'Trip completed';
+    case 'CANCELLED':
+      return 'Trip cancelled';
+    default:
+      return 'No active trip';
+  }
 }
 
 /** Elapsed-time label for an active/ended trip, e.g. "12m elapsed" /

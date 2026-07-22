@@ -1,12 +1,12 @@
 import {
-  deriveCurrentAndNextStop,
   formatTripDuration,
   formatUpdatedAgo,
+  liveTripStatusLabel,
   sortStopsBySequence,
   totalStudentCount,
   tripStatusLabel,
 } from '@/lib/transport';
-import type { DriverStop, TransportStopRef } from '@/lib/types';
+import type { DriverStop } from '@/lib/types';
 
 describe('formatUpdatedAgo — location freshness label', () => {
   const NOW = new Date('2026-07-21T12:00:00.000Z').getTime();
@@ -63,55 +63,6 @@ describe('totalStudentCount', () => {
   });
 });
 
-describe('deriveCurrentAndNextStop', () => {
-  const stops: TransportStopRef[] = [
-    { id: 'a', name: 'Stop A', sequence: 1 },
-    { id: 'b', name: 'Stop B', sequence: 2 },
-    { id: 'c', name: 'Stop C', sequence: 3 },
-  ];
-
-  it('returns nulls for an empty stop list', () => {
-    expect(deriveCurrentAndNextStop([], 'a')).toEqual({ currentStop: null, nextStop: null });
-  });
-
-  it('with no currentStopId, next is specifically the first stop in sequence', () => {
-    const result = deriveCurrentAndNextStop(stops, undefined);
-    expect(result.currentStop).toBeNull();
-    expect(result.nextStop).toEqual(stops[0]);
-  });
-
-  it('treats an explicit null currentStopId the same as undefined', () => {
-    const result = deriveCurrentAndNextStop(stops, null);
-    expect(result.currentStop).toBeNull();
-    expect(result.nextStop).toEqual(stops[0]);
-  });
-
-  it('resolves current/next from a mid-route stop id', () => {
-    const result = deriveCurrentAndNextStop(stops, 'b');
-    expect(result.currentStop).toEqual(stops[1]);
-    expect(result.nextStop).toEqual(stops[2]);
-  });
-
-  it('next is null once the current stop is the last one', () => {
-    const result = deriveCurrentAndNextStop(stops, 'c');
-    expect(result.currentStop).toEqual(stops[2]);
-    expect(result.nextStop).toBeNull();
-  });
-
-  it('treats an unknown currentStopId as "not started yet" rather than throwing', () => {
-    const result = deriveCurrentAndNextStop(stops, 'not-a-real-stop-id');
-    expect(result.currentStop).toBeNull();
-    expect(result.nextStop).toEqual(stops[0]);
-  });
-
-  it('works correctly even if the input stops are out of sequence order', () => {
-    const shuffled = [stops[2], stops[0], stops[1]];
-    const result = deriveCurrentAndNextStop(shuffled, 'a');
-    expect(result.currentStop).toEqual(stops[0]);
-    expect(result.nextStop).toEqual(stops[1]);
-  });
-});
-
 describe('tripStatusLabel', () => {
   it('reports no active trip', () => {
     expect(tripStatusLabel(null)).toBe('No active trip');
@@ -124,6 +75,28 @@ describe('tripStatusLabel', () => {
 
   it('reports an ended trip', () => {
     expect(tripStatusLabel({ status: 'ENDED' })).toBe('Trip ended');
+  });
+});
+
+describe('liveTripStatusLabel', () => {
+  it('reports an in-progress trip', () => {
+    expect(liveTripStatusLabel('ACTIVE')).toBe('Trip in progress');
+  });
+
+  it('reports a scheduled trip', () => {
+    expect(liveTripStatusLabel('SCHEDULED')).toBe('Trip scheduled');
+  });
+
+  it('reports a completed trip', () => {
+    expect(liveTripStatusLabel('COMPLETED')).toBe('Trip completed');
+  });
+
+  it('reports a cancelled trip', () => {
+    expect(liveTripStatusLabel('CANCELLED')).toBe('Trip cancelled');
+  });
+
+  it('reports the NO_ACTIVE_TRIP sentinel as "no active trip", never an ended-trip display', () => {
+    expect(liveTripStatusLabel('NO_ACTIVE_TRIP')).toBe('No active trip');
   });
 });
 

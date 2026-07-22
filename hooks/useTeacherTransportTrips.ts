@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
-import type { TeacherTransportTripsResponse, TransportTrip } from '@/lib/types';
+import type { TeacherTransportTrip, TeacherTransportTripsResponse } from '@/lib/types';
 
 const POLL_INTERVAL_MS = 10000;
 
@@ -10,7 +10,7 @@ const POLL_INTERVAL_MS = 10000;
  * so no client-side filtering by section/class is needed here. */
 export function useTeacherTransportTrips() {
   const { token } = useAuth();
-  const [trips, setTrips] = useState<TransportTrip[]>([]);
+  const [trips, setTrips] = useState<TeacherTransportTrip[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
