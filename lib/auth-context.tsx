@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { apiRequest, clearGetDedupCache, NetworkError, resetUnauthorizedGuard, setUnauthorizedHandler, UnauthorizedError } from './api-client';
+import { apiRequest, clearGetDedupCache, NetworkError, resetUnauthorizedGuard, SCHOOL_SLUG, SCHOOL_SLUG_CONFIG_ERROR, setUnauthorizedHandler, UnauthorizedError } from './api-client';
 import { cacheKey, cachedFetch, CACHE_TTL, clearAllCache } from './query-cache';
 import { clearPdfCache } from './pdf-download';
 import { clearSession, loadSession, persistSession } from './session';
@@ -188,9 +188,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loginParentOrStudent = useCallback(async (identifier: string, password: string) => {
+    if (SCHOOL_SLUG_CONFIG_ERROR) throw new Error(SCHOOL_SLUG_CONFIG_ERROR);
     const res = await apiRequest<UnifiedLoginResponse>('/api/mobile/login', {
       method: 'POST',
-      body: JSON.stringify({ identifier, password }),
+      body: JSON.stringify({ identifier, password, schoolSlug: SCHOOL_SLUG }),
     });
     resetUnauthorizedGuard();
 

@@ -1,108 +1,69 @@
 import React from 'react';
-import { Redirect } from 'expo-router';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { ActorHeader } from '@/components/BrandHeader';
-import { AnnouncementsCard } from '@/components/AnnouncementsCard';
-import { AttendanceCard } from '@/components/AttendanceCard';
-import { FeesCard } from '@/components/FeesCard';
-import { HomeworkCard } from '@/components/HomeworkCard';
-import { MarksCard } from '@/components/MarksCard';
-import { ReportCardsCard } from '@/components/ReportCardsCard';
-import { StudentLeaveCard } from '@/components/StudentLeaveCard';
-import { TimetableCard } from '@/components/TimetableCard';
-import { TransportCard } from '@/components/TransportCard';
-import { useParentDashboard } from '@/hooks/useParentDashboard';
-import { useParentStudentLeave } from '@/hooks/useParentStudentLeave';
-import { useParentTransportTrip } from '@/hooks/useParentTransportTrip';
+import { Redirect, useRouter } from 'expo-router';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { PortalGrid } from '@/components/PortalGrid';
 import { useAuth } from '@/lib/auth-context';
-import { roleLabel } from '@/lib/format';
+import { useFeatureBootstrap } from '@/hooks/useFeatureBootstrap';
+import { useParentDashboard } from '@/hooks/useParentDashboard';
+import { computeVisibleParentPortalModules } from '@/lib/parent-portal-modules';
+import { EmptyState } from '@/components/EmptyState';
 import { styles } from '@/lib/styles';
 
+// Grid-menu landing screen for the Parent Portal — mirrors the Student
+// Portal grid built in PR #2 (see lib/student-portal-modules.ts) via the
+// shared PortalGrid component. Only surfaces tiles backed by a real Parent
+// API route; see lib/parent-portal-modules.ts for the (unit-tested)
+// visibility rule and a note on what was dropped for having no real backing
+// endpoint (Leave, Profile). Transport (from the Transport Driver Portal
+// work) is its own tile/screen — see app/parent/transport.tsx — rather than
+// inline here, consistent with every other module on this grid.
 export default function ParentScreen() {
-  const { role, user, branding, logout, token } = useAuth();
+  const { role, branding, logout } = useAuth();
+  const { hasFeature } = useFeatureBootstrap();
   const dashboard = useParentDashboard();
-  const leave = useParentStudentLeave(dashboard.selectedStudentId);
-  // Tied to the same selectedStudentId as the rest of this dashboard, so
-  // switching children in the chip row above also switches whose trip is
-  // being polled/displayed here.
-  const transport = useParentTransportTrip(dashboard.selectedStudentId);
+  const router = useRouter();
 
   if (role !== 'PARENT') return <Redirect href="/" />;
 
-  const refreshing = dashboard.refreshing || leave.refreshing;
-  const handleRefresh = () => {
-    dashboard.handleRefresh();
-    leave.handleRefresh();
-  };
+  const modules = computeVisibleParentPortalModules(hasFeature);
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-    >
-      <ActorHeader branding={branding} userName={user?.name || ''} roleLabel={roleLabel(role)} onLogout={logout} />
-
-      {dashboard.error ? <Text style={styles.errorBanner}>{dashboard.error}</Text> : null}
-
-      {dashboard.loadingData ? (
-        <View style={styles.loaderWrap}>
-          <ActivityIndicator size="large" color={branding.primaryColor} />
+    <PortalGrid
+      title="Parent Portal"
+      color={branding.primaryColor}
+      modules={modules}
+      onNavigate={(route) => router.push(route as never)}
+      onSearch={() => router.push('/parent/portal-search')}
+      onLogout={logout}
+      refreshing={dashboard.refreshing}
+      onRefresh={dashboard.handleRefresh}
+      header={
+        <View style={[styles.card, { marginBottom: 0 }]}>
+          <Text style={styles.sectionTitle}>Children</Text>
+          {dashboard.children.length === 0 ? (
+            <EmptyState icon="people-outline" title="No linked students" message="No linked students found for this account." />
+          ) : null}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {dashboard.children.map((child) => {
+              const isSelected = dashboard.selectedStudentId === child.id;
+              return (
+                <Pressable
+                  key={child.id}
+                  style={[styles.childChip, isSelected && { borderColor: branding.primaryColor, backgroundColor: '#eef6ff' }]}
+                  onPress={() => dashboard.handleChildChange(child.id)}
+                >
+                  <Text style={[styles.childChipText, isSelected && { color: branding.primaryColor }]}>{child.name}</Text>
+                  <Text style={styles.childChipSubtext}>
+                    Roll {child.rollNo}
+                    {child.section?.class?.name && child.section?.name ? ` - ${child.section.class.name}-${child.section.name}` : ''}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          {dashboard.error ? <Text style={[styles.inlineErrorText, { marginTop: 8 }]}>{dashboard.error}</Text> : null}
         </View>
-      ) : (
-        <>
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Children</Text>
-            {dashboard.children.length === 0 ? (
-              <Text style={styles.emptyText}>No linked students found for this account.</Text>
-            ) : null}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {dashboard.children.map((child) => {
-                const isSelected = dashboard.selectedStudentId === child.id;
-                return (
-                  <Pressable
-                    key={child.id}
-                    style={[styles.childChip, isSelected && { borderColor: branding.primaryColor, backgroundColor: '#eef6ff' }]}
-                    onPress={() => dashboard.handleChildChange(child.id)}
-                  >
-                    <Text style={[styles.childChipText, isSelected && { color: branding.primaryColor }]}>{child.name}</Text>
-                    <Text style={styles.childChipSubtext}>
-                      Roll {child.rollNo}
-                      {child.section?.class?.name && child.section?.name ? ` - ${child.section.class.name}-${child.section.name}` : ''}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          <TransportCard
-            trip={transport.trip}
-            loading={transport.loading}
-            error={transport.error}
-            color={branding.primaryColor}
-            emptyLabel="No bus trip today."
-          />
-          <FeesCard pendingFees={dashboard.pendingFees} />
-          <HomeworkCard
-            homework={dashboard.homework}
-            submittingHomeworkId={dashboard.submittingHomeworkId}
-            onSubmitHomework={dashboard.handleSubmitHomework}
-          />
-          <AttendanceCard attendance={dashboard.attendance} summary={dashboard.attendanceSummary} />
-          <MarksCard marks={dashboard.marks} />
-          <ReportCardsCard reportCards={dashboard.reportCards} token={token} pdfPathPrefix="/api/parent/report-cards" />
-          <TimetableCard timetable={dashboard.timetable} />
-          <StudentLeaveCard
-            leaves={leave.leaves}
-            loading={leave.loading}
-            creating={leave.creating}
-            error={leave.error}
-            color={branding.primaryColor}
-            onCreate={leave.createLeave}
-          />
-          <AnnouncementsCard announcements={dashboard.announcements} />
-        </>
-      )}
-    </ScrollView>
+      }
+    />
   );
 }

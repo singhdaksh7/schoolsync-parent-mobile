@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { styles } from '@/lib/styles';
 import { formatDate } from '@/lib/format';
 import type { AnnouncementItem } from '@/lib/types';
+import { EmptyState } from './EmptyState';
 
 export function AnnouncementsCard({ announcements }: { announcements: AnnouncementItem[] }) {
   return (
@@ -18,7 +19,9 @@ export function AnnouncementsCard({ announcements }: { announcements: Announceme
           </Text>
         </View>
       ))}
-      {announcements.length === 0 ? <Text style={styles.emptyText}>No announcements yet.</Text> : null}
+      {announcements.length === 0 ? (
+        <EmptyState icon="megaphone-outline" title="No announcements yet" message="School announcements will appear here." />
+      ) : null}
     </View>
   );
 }

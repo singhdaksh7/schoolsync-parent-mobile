@@ -19,7 +19,8 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://pilot.zipinnovate.com",
-        "EXPO_PUBLIC_APP_ENV": "pilot"
+        "EXPO_PUBLIC_APP_ENV": "pilot",
+        "EXPO_PUBLIC_SCHOOL_SLUG": "royal-public-school"
       },
       "android": {
         "buildType": "apk"

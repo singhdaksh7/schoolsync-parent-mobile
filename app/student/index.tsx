@@ -1,112 +1,125 @@
 import React from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import { Redirect, useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { ActorHeader } from '@/components/BrandHeader';
-import { AnnouncementsCard } from '@/components/AnnouncementsCard';
-import { MarksCard } from '@/components/MarksCard';
-import { ReportCardsCard } from '@/components/ReportCardsCard';
-import { StudentAttendanceCard, StudentHomeworkCard, StudentTodayTimetableCard } from '@/components/StudentCards';
-import { StudentLeaveCard } from '@/components/StudentLeaveCard';
-import { useStudentDashboard } from '@/hooks/useStudentDashboard';
-import { useStudentLeave } from '@/hooks/useStudentLeave';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
-import { roleLabel } from '@/lib/format';
+import { useFeatureBootstrap } from '@/hooks/useFeatureBootstrap';
+import { useStudentDashboard } from '@/hooks/useStudentDashboard';
+import { computeDashboardQuickActions } from '@/lib/student-portal-modules';
+import { GlassSurface } from '@/components/GlassSurface';
+import { LiquidBackground } from '@/components/LiquidBackground';
+import { StudentTopBar } from '@/components/StudentTopBar';
+import { StudentBottomNav } from '@/components/StudentBottomNav';
+import { DashboardSkeleton } from '@/components/Skeleton';
+import { Theme } from '@/constants/theme';
 import { styles } from '@/lib/styles';
 
+// Stitch "student-portal-dashboard" (Max Liquid Glass) rebuilt structurally:
+// welcome header, 2 glass stat cards (Attendance/Homework), a 6-tile Quick
+// Actions grid (computeDashboardQuickActions — the curated subset Stitch's
+// Dashboard shows, distinct from the full 8-tile Menu grid on
+// app/student/portal.tsx). Stitch's "Term Progress" section (Academic
+// Standing %, Class Rank, Credits) is dropped entirely — none of those three
+// values exist in the data model, and dropping just one field would have
+// left the section holding nothing real, so the whole section goes rather
+// than showing an empty shell.
 export default function StudentScreen() {
-  const { role, studentProfile, studentSchool, branding, logout, token } = useAuth();
+  const { role, studentProfile, branding } = useAuth();
+  const { hasFeature } = useFeatureBootstrap();
   const dashboard = useStudentDashboard();
-  const leave = useStudentLeave();
   const router = useRouter();
 
   if (role !== 'STUDENT') return <Redirect href="/" />;
 
-  const className = studentProfile?.section?.class?.name;
-  const sectionName = studentProfile?.section?.name;
-  const classSection = className && sectionName ? `${className} - ${sectionName}` : className || sectionName || null;
+  const firstName = (studentProfile?.name || 'Student').split(' ')[0];
   const initial = (studentProfile?.name || 'S').trim().charAt(0).toUpperCase();
-  const hasData =
-    dashboard.attendance.length > 0 ||
-    dashboard.homework.length > 0 ||
-    dashboard.todayTimetable.length > 0 ||
-    dashboard.marks.length > 0 ||
-    dashboard.reportCards.length > 0 ||
-    dashboard.announcements.length > 0 ||
-    dashboard.attendanceSummary !== null;
-
-  const refreshing = dashboard.refreshing || leave.refreshing;
-  const handleRefresh = () => {
-    dashboard.handleRefresh();
-    leave.handleRefresh();
-  };
+  const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+  const pendingHomework = dashboard.homework.filter((item) => item.submissionStatus === 'PENDING').length;
+  const quickActions = computeDashboardQuickActions(hasFeature);
+  const hasAnyData =
+    dashboard.attendanceSummary !== null || dashboard.homework.length > 0 || dashboard.attendance.length > 0;
 
   return (
-    <ScrollView style={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}>
-      <ActorHeader
-        branding={branding}
-        userName={studentProfile?.name || 'Student'}
-        roleLabel={roleLabel(role)}
-        onLogout={logout}
+    <View style={styles.liquidScreen}>
+      <LiquidBackground
+        blobs={[
+          { color: Theme.colors.primaryContainer, size: 220, top: -60, right: -60 },
+          { color: Theme.colors.secondaryContainer, size: 180, bottom: 120, left: -80 },
+        ]}
       />
+      <StudentTopBar title="Dashboard" initial={initial} color={branding.primaryColor} />
 
-      <Pressable
-        style={[styles.teacherHero, { marginBottom: 0 }]}
-        onPress={() => router.push('/student/portal')}
+      <ScrollView
+        contentContainerStyle={styles.liquidScrollContent}
+        refreshControl={<RefreshControl refreshing={dashboard.refreshing} onRefresh={dashboard.handleRefresh} />}
       >
-        <View style={styles.teacherHeroText}>
-          <Text style={styles.teacherHeroLabel}>ALL MODULES</Text>
-          <Text style={styles.teacherHeroTitle}>Student Portal</Text>
-          <Text style={styles.teacherHeroSubtext}>Profile, Timetable, Attendance, Marks, Report Cards, Announcements</Text>
+        <Text style={styles.liquidWelcomeTitle}>Welcome back, {firstName}</Text>
+        <View style={styles.liquidWelcomeSubtitle}>
+          <Ionicons name="calendar-outline" size={14} color={Theme.colors.onSurfaceVariant} />
+          <Text style={styles.liquidWelcomeSubtitleText}>{today}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={22} color={branding.primaryColor} />
-      </Pressable>
 
-      {dashboard.error ? (
-        <View style={styles.inlineError}>
-          <Text style={styles.inlineErrorTitle}>Could not refresh student data</Text>
-          <Text style={styles.inlineErrorText}>{dashboard.error}</Text>
-        </View>
-      ) : null}
-
-      <View style={[styles.card, styles.studentProfileCard]}>
-        <View style={[styles.studentAvatar, { backgroundColor: branding.primaryColor }]}>
-          <Text style={styles.studentAvatarText}>{initial}</Text>
-        </View>
-        <View style={styles.studentProfileBody}>
-          <Text style={styles.studentName}>{studentProfile?.name || 'Student'}</Text>
-          <Text style={styles.studentClassLine}>{classSection || 'Class & section not provided'}</Text>
-          <View style={styles.studentMetaRow}>
-            <Text style={styles.studentMetaPill}>Roll {studentProfile?.rollNo || '--'}</Text>
-            {studentProfile?.admissionNo ? <Text style={styles.studentMetaPill}>Adm {studentProfile.admissionNo}</Text> : null}
+        {dashboard.error ? (
+          <View style={[styles.inlineError, { marginHorizontal: 0, marginTop: 16 }]}>
+            <Text style={styles.inlineErrorTitle}>Could not refresh dashboard</Text>
+            <Text style={styles.inlineErrorText}>{dashboard.error}</Text>
           </View>
-          <Text style={styles.studentSchool}>{studentSchool?.name || 'School'}</Text>
-        </View>
-        {dashboard.loading ? <ActivityIndicator color={branding.primaryColor} /> : null}
-      </View>
+        ) : null}
 
-      {dashboard.loading && !hasData ? (
-        <View style={styles.loaderWrap}>
-          <ActivityIndicator size="large" color={branding.primaryColor} />
-        </View>
-      ) : (
-        <>
-          <StudentAttendanceCard attendance={dashboard.attendance} summary={dashboard.attendanceSummary} color={branding.primaryColor} />
-          <StudentHomeworkCard homework={dashboard.homework} />
-          <StudentTodayTimetableCard timetable={dashboard.todayTimetable} color={branding.primaryColor} />
-          <MarksCard marks={dashboard.marks} />
-          <ReportCardsCard reportCards={dashboard.reportCards} token={token} pdfPathPrefix="/api/student/report-cards" />
-          <StudentLeaveCard
-            leaves={leave.leaves}
-            loading={leave.loading}
-            creating={leave.creating}
-            error={leave.error}
-            color={branding.primaryColor}
-            onCreate={leave.createLeave}
-          />
-          <AnnouncementsCard announcements={dashboard.announcements} />
-        </>
-      )}
-    </ScrollView>
+        {dashboard.loading && !hasAnyData ? (
+          <DashboardSkeleton />
+        ) : (
+          <>
+            <View style={styles.liquidStatRow}>
+              <GlassSurface style={styles.liquidStatCard}>
+                <View style={styles.liquidStatHeaderRow}>
+                  <Text style={styles.liquidStatLabel}>Attendance</Text>
+                  <View style={[styles.liquidStatIconWrap, { backgroundColor: '#dcfce7' }]}>
+                    <Ionicons name="checkmark-circle" size={18} color={Theme.colors.success} />
+                  </View>
+                </View>
+                <View>
+                  <Text style={styles.liquidStatValue}>
+                    {dashboard.attendanceSummary ? `${dashboard.attendanceSummary.percentage}%` : '—'}
+                  </Text>
+                  <Text style={styles.liquidStatSub}>Overall attendance</Text>
+                </View>
+              </GlassSurface>
+
+              <GlassSurface style={styles.liquidStatCard}>
+                <View style={styles.liquidStatHeaderRow}>
+                  <Text style={styles.liquidStatLabel}>Homework</Text>
+                  <View style={[styles.liquidStatIconWrap, { backgroundColor: Theme.colors.errorContainer }]}>
+                    <Ionicons name="alert-circle" size={18} color={Theme.colors.error} />
+                  </View>
+                </View>
+                <View>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                    <Text style={styles.liquidStatValue}>{pendingHomework}</Text>
+                    <Text style={[styles.liquidStatSub, { marginTop: 0 }]}>Pending</Text>
+                  </View>
+                </View>
+              </GlassSurface>
+            </View>
+
+            <Text style={styles.liquidSectionTitle}>Quick Actions</Text>
+            <View style={styles.liquidTileGrid}>
+              {quickActions.map((module) => (
+                <Pressable key={module.key} style={{ width: '47%' }} onPress={() => router.push(module.route as never)}>
+                  <GlassSurface intensity={35} style={{ paddingVertical: Theme.spacing.lg, alignItems: 'center', gap: Theme.spacing.sm }}>
+                    <View style={[styles.liquidTileIconWrap, { backgroundColor: branding.primaryColor + '1a' }]}>
+                      <Ionicons name={module.icon as keyof typeof Ionicons.glyphMap} size={24} color={branding.primaryColor} />
+                    </View>
+                    <Text style={styles.liquidTileLabel}>{module.title}</Text>
+                  </GlassSurface>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
+      </ScrollView>
+
+      <StudentBottomNav active="home" color={branding.primaryColor} />
+    </View>
   );
 }

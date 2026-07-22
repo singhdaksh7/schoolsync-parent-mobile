@@ -4,6 +4,7 @@ import { styles } from '@/lib/styles';
 import { formatDate } from '@/lib/format';
 import type { AttendanceItem } from '@/lib/types';
 import { InfoRow } from './InfoRow';
+import { EmptyState } from './EmptyState';
 
 export function AttendanceCard({
   attendance,
@@ -23,7 +24,9 @@ export function AttendanceCard({
       {attendance.slice(0, 8).map((item) => (
         <InfoRow key={item.id} title={formatDate(item.date)} value={item.status} />
       ))}
-      {attendance.length === 0 ? <Text style={styles.emptyText}>No attendance records.</Text> : null}
+      {attendance.length === 0 ? (
+        <EmptyState icon="checkmark-done-outline" title="No attendance records" message="Attendance records will appear here." />
+      ) : null}
     </View>
   );
 }
