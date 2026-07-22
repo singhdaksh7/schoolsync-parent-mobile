@@ -49,3 +49,36 @@ export function ListSkeleton({ items = 3 }: { items?: number }) {
     </View>
   );
 }
+
+/**
+ * Loading Skeleton shaped like the real Stitch "Dashboard" bento layout
+ * (2 stat-card placeholders + a 6-tile Quick Actions grid placeholder) —
+ * student portal only, used while `app/student/index.tsx`'s first fetch is
+ * in flight. Purely additive to this file; `Skeleton`/`CardSkeleton`/
+ * `ListSkeleton` above are unchanged and still used as-is by Parent screens.
+ */
+export function DashboardSkeleton() {
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', gap: 16, marginTop: 24 }}>
+        <View style={[styles.card, { flex: 1, marginHorizontal: 0, marginTop: 0, minHeight: 108, justifyContent: 'space-between' }]}>
+          <Skeleton width="60%" height={11} />
+          <Skeleton width="40%" height={24} />
+        </View>
+        <View style={[styles.card, { flex: 1, marginHorizontal: 0, marginTop: 0, minHeight: 108, justifyContent: 'space-between' }]}>
+          <Skeleton width="60%" height={11} />
+          <Skeleton width="40%" height={24} />
+        </View>
+      </View>
+      <Skeleton width="35%" height={20} style={{ marginTop: 32, marginBottom: 16 }} />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <View key={i} style={[styles.card, { width: '47%', marginHorizontal: 0, marginTop: 0, alignItems: 'center', gap: 8, paddingVertical: 24 }]}>
+            <Skeleton width={48} height={48} style={{ borderRadius: 24 }} />
+            <Skeleton width="70%" height={11} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}

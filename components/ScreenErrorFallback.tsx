@@ -6,33 +6,23 @@ import { styles } from '@/lib/styles';
 import { Theme } from '@/constants/theme';
 import { useAuth } from '@/lib/auth-context';
 
-type SystemStateVariant = 'crash' | 'offline' | 'not-found';
-
-const VARIANT_COPY: Record<SystemStateVariant, { icon: keyof typeof Ionicons.glyphMap; title: string; message: string }> = {
-  crash: {
-    icon: 'alert-circle-outline',
-    title: "SchoolSync couldn't load this screen.",
-    message: 'Try again, or sign out and back in if the problem continues.',
-  },
-  offline: {
-    icon: 'cloud-offline-outline',
-    title: "You're offline.",
-    message: 'Check your connection and try again.',
-  },
-  'not-found': {
-    icon: 'search-outline',
-    title: "We couldn't find that.",
-    message: 'It may have been removed, or the link is out of date.',
-  },
-};
+// Only Stitch's two real "System States" variants — crash and offline. The
+// earlier 'not-found' variant (invented last session, not in the Stitch
+// design set) has been removed.
+type SystemStateVariant = 'crash' | 'offline';
 
 /**
  * Rendered in place of a crashed screen (see the `ErrorBoundary` export in
- * each actor layout / the root layout), or for other full-screen system
- * states (offline, not-found) matching the Stitch "System States" screen.
- * Deliberately shows nothing about the error itself — no stack trace, no
- * API response body, no token — since this can be reached from any
- * authenticated screen.
+ * each actor layout / the root layout), or for an offline state matching
+ * the Stitch "System States" screen. Deliberately shows nothing about the
+ * error itself — no stack trace, no API response body, no token — since
+ * this can be reached from any authenticated screen.
+ *
+ * NOTE: this component is shared by every actor (student/parent/teacher/
+ * admin/root `ErrorBoundary`), not just the student portal — restyling it
+ * to match Stitch necessarily changes the crash/offline screen for Parent
+ * and Teacher too, since there is no separate variant to fork without
+ * duplicating a system-wide primitive. Reported as required.
  */
 export function ScreenErrorFallback({
   onRetry,
@@ -43,20 +33,50 @@ export function ScreenErrorFallback({
   onSignOut: () => void;
   variant?: SystemStateVariant;
 }) {
-  const copy = VARIANT_COPY[variant];
+  if (variant === 'offline') {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+        <View style={[styles.card, styles.lastCard, { alignItems: 'center' }]}>
+          <View style={[styles.systemStateIconWrap, { backgroundColor: Theme.colors.secondaryContainer + '33' }]}>
+            <Ionicons name="cloud-offline-outline" size={30} color={Theme.colors.secondary} />
+          </View>
+          <Text style={[styles.sectionTitle, { textAlign: 'center' }]}>No connection</Text>
+          <Text style={[styles.emptyText, { textAlign: 'center' }]}>
+            Check your internet settings to sync your latest data.
+          </Text>
+          <View style={[styles.infoBox, { flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'stretch', marginTop: 20 }]}>
+            <Ionicons name="wifi-outline" size={18} color={Theme.colors.secondary} />
+            <Text style={{ color: Theme.colors.onSecondaryContainer, fontSize: 13 }}>Offline mode — some data may be out of date</Text>
+          </View>
+          <Pressable style={[styles.primaryButton, { backgroundColor: Theme.colors.secondary, alignSelf: 'stretch', marginTop: 16 }]} onPress={onRetry}>
+            <Text style={styles.primaryButtonText}>Try Again</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
-      <View style={[styles.card, styles.lastCard]}>
+      <View style={[styles.card, styles.lastCard, { alignItems: 'center' }]}>
         <View style={styles.systemStateIconWrap}>
-          <Ionicons name={copy.icon} size={30} color={Theme.colors.error} />
+          <Ionicons name="alert-circle-outline" size={30} color={Theme.colors.error} />
         </View>
-        <Text style={[styles.sectionTitle, { textAlign: 'center' }]}>{copy.title}</Text>
-        <Text style={[styles.emptyText, { textAlign: 'center' }]}>{copy.message}</Text>
-        <Pressable style={[styles.primaryButton, { marginTop: 14 }]} onPress={onRetry}>
+        <Text style={[styles.sectionTitle, { textAlign: 'center' }]}>SchoolSync couldn&apos;t load this screen.</Text>
+        <Text style={[styles.emptyText, { textAlign: 'center' }]}>
+          Try again, or sign out and back in if the problem continues.
+        </Text>
+        <Pressable style={[styles.primaryButton, { alignSelf: 'stretch', marginTop: 16 }]} onPress={onRetry}>
           <Text style={styles.primaryButtonText}>Try Again</Text>
         </Pressable>
-        <Pressable style={[styles.smallButton, { alignSelf: 'center', marginTop: 10 }]} onPress={onSignOut}>
-          <Text style={styles.smallButtonText}>Sign Out</Text>
+        <Pressable
+          style={[
+            styles.primaryButton,
+            { alignSelf: 'stretch', marginTop: 10, backgroundColor: 'transparent', borderWidth: 1, borderColor: Theme.colors.primary + '33' },
+          ]}
+          onPress={onSignOut}
+        >
+          <Text style={[styles.primaryButtonText, { color: Theme.colors.primary }]}>Sign Out</Text>
         </Pressable>
       </View>
     </ScrollView>
