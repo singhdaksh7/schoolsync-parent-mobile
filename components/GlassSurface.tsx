@@ -12,10 +12,20 @@ import { Theme } from '@/constants/theme';
  * CSS `backdrop-filter: blur(Npx)` has no React Native equivalent — the
  * closest faithful substitute is expo-blur's `BlurView`, which blurs
  * whatever is rendered *behind* it in the view hierarchy (works because
- * every screen using this renders `LiquidBackground` blobs behind the
- * content). `intensity` (0-100) approximates the blur px value; there is no
- * 1:1 mapping to CSS px, so values below are chosen by visual match against
- * the Stitch screenshots, not computed.
+ * every screen using this renders `LiquidBackground` behind the content).
+ * `intensity` (0-100) approximates the blur px value; there is no 1:1
+ * mapping to CSS px, so values below are chosen by visual match against the
+ * Stitch screenshots, not computed.
+ *
+ * Android: expo-blur's `BlurView` does not perform a real blur unless
+ * `experimentalBlurMethod="dimezisBlurView"` is set, and expo-blur's own
+ * docs flag that method as experimental ("may cause performance and
+ * graphical issues") — without it, Android silently falls back to a flat
+ * semi-transparent view, which is what was rendering as a murky grey slab
+ * on-device. Rather than gamble on the experimental method, Android gets no
+ * `BlurView` in the tree at all here — just a flat translucent near-white
+ * surface (`androidBackgroundColor`) over the same border/elevation. iOS
+ * keeps the real blur.
  */
 export function GlassSurface({
   children,
@@ -26,6 +36,7 @@ export function GlassSurface({
   glow = false,
   borderColor = 'rgba(255,255,255,0.5)',
   overlayColor = 'rgba(255,255,255,0.35)',
+  androidBackgroundColor = 'rgba(255,255,255,0.8)',
 }: {
   children?: React.ReactNode;
   style?: ViewStyle | ViewStyle[];
@@ -35,11 +46,19 @@ export function GlassSurface({
   glow?: boolean;
   borderColor?: string;
   overlayColor?: string;
+  /** Android-only: flat translucent surface color, used instead of BlurView (see file docblock). */
+  androidBackgroundColor?: string;
 }) {
   return (
     <View style={[{ borderRadius: radius, overflow: 'hidden', borderWidth: 1, borderColor }, glow ? styles.glow : null, style]}>
-      <BlurView intensity={intensity} tint={tint} style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: overlayColor }]} />
+      {Platform.OS === 'ios' ? (
+        <>
+          <BlurView intensity={intensity} tint={tint} style={StyleSheet.absoluteFill} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: overlayColor }]} />
+        </>
+      ) : (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: androidBackgroundColor }]} />
+      )}
       {children}
     </View>
   );
