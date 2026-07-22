@@ -14,6 +14,16 @@ export const API_CONFIG_ERROR = !API_BASE_URL
     ? 'Backend API URL must use https:// — refusing to send requests (and bearer tokens) over an insecure connection.'
     : null;
 
+// /api/mobile/login resolves the tenant from the request hostname OR a
+// `schoolSlug` in the body — pilot.zipinnovate.com resolves to no tenant, so
+// this build-time slug is the only thing that lets login reach the
+// credential check at all. Sourced from config (per build profile), never
+// hardcoded — this app is multi-tenant and each build targets one school.
+export const SCHOOL_SLUG = (process.env.EXPO_PUBLIC_SCHOOL_SLUG || '').trim();
+export const SCHOOL_SLUG_CONFIG_ERROR = !SCHOOL_SLUG
+  ? 'School is not configured for this build. Set EXPO_PUBLIC_SCHOOL_SLUG before running the app.'
+  : null;
+
 const DEFAULT_TIMEOUT_MS = 20000;
 
 export class ApiError extends Error {
