@@ -1,70 +1,39 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Theme } from '@/constants/theme';
 
 type Blob = { color: string; size: number; top?: number; left?: number; right?: number; bottom?: number };
 
 /**
- * Decorative ambient background blobs behind the "liquid glass" screens
- * (Stitch's `.liquid-bg-blob` / `.liquid-orb`, e.g. `filter: blur(80px);
- * opacity: 0.4`). CSS `filter: blur()` on a shape's own edges has no React
- * Native equivalent — expo-blur's BlurView blurs whatever renders *behind*
- * it, it cannot soften a shape's own boundary. A true Gaussian blur here
- * would need an image/shader-based blur library, which wasn't authorized
- * (only expo-blur was). Substitute used: each blob is drawn as 3 concentric
- * circles of the same color at decreasing opacity/increasing size, which
- * approximates a soft falloff at the edge instead of Stitch's exact blur
- * radius — closer than a single flat-opacity circle, but still a visibly
- * harder edge than the CSS original.
+ * Ambient screen background behind the "liquid glass" student portal
+ * screens. Previously drawn as concentric-circle "blobs" approximating
+ * Stitch's `filter: blur(80px)` color orbs — on-device that read as visible
+ * hard-edged rings, not a soft glow (expo-blur's BlurView blurs whatever
+ * renders *behind* it; it cannot soften a shape's own edges, so the
+ * concentric-ring trick was the best available approximation and it still
+ * wasn't good enough). Replaced with a subtle diagonal wash via
+ * expo-linear-gradient instead: primary-tinted at top-left, the flat
+ * Academic Clarity background color in the middle, secondary-tinted at
+ * bottom-right — echoes Stitch's two-color blob scheme (primaryContainer /
+ * secondaryContainer) without any hard edges. Tints are held to 6-7% opacity
+ * ("rgba" alpha, not the base theme color) specifically so the wash stays
+ * quiet behind the glass cards — enough spatial variation for BlurView's
+ * blur to visibly do something, not enough to compete with the foreground.
+ *
+ * The `blobs` prop is accepted but intentionally unused — kept so none of
+ * the 10 call sites (all `app/student/*`) needed touching for this
+ * background-only change.
  */
-export function LiquidBackground({ blobs }: { blobs: Blob[] }) {
+export function LiquidBackground(_props: { blobs?: Blob[] }) {
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {blobs.map((blob, i) => (
-        <View
-          key={i}
-          style={{
-            position: 'absolute',
-            top: blob.top,
-            left: blob.left,
-            right: blob.right,
-            bottom: blob.bottom,
-            width: blob.size * 1.6,
-            height: blob.size * 1.6,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <View
-            style={{
-              position: 'absolute',
-              width: blob.size * 1.6,
-              height: blob.size * 1.6,
-              borderRadius: blob.size * 0.8,
-              backgroundColor: blob.color,
-              opacity: 0.08,
-            }}
-          />
-          <View
-            style={{
-              position: 'absolute',
-              width: blob.size * 1.2,
-              height: blob.size * 1.2,
-              borderRadius: blob.size * 0.6,
-              backgroundColor: blob.color,
-              opacity: 0.14,
-            }}
-          />
-          <View
-            style={{
-              width: blob.size,
-              height: blob.size,
-              borderRadius: blob.size / 2,
-              backgroundColor: blob.color,
-              opacity: 0.2,
-            }}
-          />
-        </View>
-      ))}
-    </View>
+    <LinearGradient
+      colors={['rgba(0,91,191,0.07)', Theme.colors.background, 'rgba(77,142,254,0.06)']}
+      locations={[0, 0.55, 1]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={StyleSheet.absoluteFill}
+      pointerEvents="none"
+    />
   );
 }
