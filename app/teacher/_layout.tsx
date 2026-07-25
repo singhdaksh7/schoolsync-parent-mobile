@@ -1,19 +1,17 @@
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { useAuth } from '@/lib/auth-context';
 import { ActorErrorBoundary } from '@/components/ScreenErrorFallback';
+import { TeacherTheme } from '@/constants/theme';
 
 export { ActorErrorBoundary as ErrorBoundary };
 
 export default function TeacherTabsLayout() {
-  const { branding } = useAuth();
-
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: branding.primaryColor,
+        tabBarActiveTintColor: TeacherTheme.colors.primary,
         tabBarInactiveTintColor: '#94a3b8',
       }}
     >

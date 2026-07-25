@@ -4,6 +4,9 @@ import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react
 import { useAuth } from '@/lib/auth-context';
 import { useOperationsAttention } from '@/hooks/useOperationsAttention';
 import { styles } from '@/lib/styles';
+import { TeacherTheme } from '@/constants/theme';
+
+const tc = TeacherTheme.colors;
 
 const SEVERITY_COLOR: Record<string, string> = {
   CRITICAL: '#b91c1c',
@@ -13,32 +16,32 @@ const SEVERITY_COLOR: Record<string, string> = {
 };
 
 export default function OperationsAttentionScreen() {
-  const { role, branding } = useAuth();
+  const { role } = useAuth();
   const attention = useOperationsAttention();
 
   if (role !== 'TEACHER') return <Redirect href="/" />;
 
   return (
     <ScrollView
-      style={styles.container}
+      style={styles.teacherScreen}
       refreshControl={<RefreshControl refreshing={attention.refreshing} onRefresh={attention.handleRefresh} />}
     >
       {attention.error ? <Text style={styles.errorBanner}>{attention.error}</Text> : null}
-      {attention.loading && !attention.data ? <ActivityIndicator color={branding.primaryColor} /> : null}
+      {attention.loading && !attention.data ? <ActivityIndicator color={tc.primary} /> : null}
 
       {attention.data?.attention.length === 0 ? (
-        <View style={[styles.card, styles.lastCard]}>
-          <Text style={styles.emptyText}>Nothing needs attention right now.</Text>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
+          <Text style={styles.teacherEmptyText}>Nothing needs attention right now.</Text>
         </View>
       ) : null}
 
       {attention.data?.attention.map((item, index) => (
-        <View key={item.code} style={[styles.card, index === attention.data!.attention.length - 1 && styles.lastCard]}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.listRowTitle}>{item.title}</Text>
-            <Text style={[styles.statusPill, { color: SEVERITY_COLOR[item.severity] }]}>{item.severity}</Text>
+        <View key={item.code} style={[styles.teacherCard, index === attention.data!.attention.length - 1 && styles.teacherLastCard]}>
+          <View style={styles.teacherCardHeaderRow}>
+            <Text style={styles.teacherListRowTitle}>{item.title}</Text>
+            <Text style={[styles.teacherPill, styles.teacherPillMuted, { color: SEVERITY_COLOR[item.severity] }]}>{item.severity}</Text>
           </View>
-          <Text style={styles.listRowSubtext}>{item.description}</Text>
+          <Text style={styles.teacherListRowSubtext}>{item.description}</Text>
         </View>
       ))}
     </ScrollView>

@@ -5,6 +5,9 @@ import { useAuth } from '@/lib/auth-context';
 import { useTeacherPermissions } from '@/hooks/useTeacherPermissions';
 import { roleLabel } from '@/lib/format';
 import { styles } from '@/lib/styles';
+import { TeacherTheme } from '@/constants/theme';
+
+const tc = TeacherTheme.colors;
 
 export default function TeacherProfileScreen() {
   const { role, user, branding, logout } = useAuth();
@@ -13,34 +16,34 @@ export default function TeacherProfileScreen() {
   if (role !== 'TEACHER') return <Redirect href="/" />;
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={[styles.header, { backgroundColor: branding.primaryColor }]}>
-        <Text style={styles.title}>Profile</Text>
+    <ScrollView style={styles.teacherScreen}>
+      <View style={styles.teacherHeader}>
+        <Text style={styles.teacherHeaderTitle}>Profile</Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>{user?.name}</Text>
-        <Text style={styles.listRowSubtext}>{user?.email}</Text>
-        <Text style={styles.studentMetaPill}>{roleLabel(role)}</Text>
+      <View style={styles.teacherCard}>
+        <Text style={styles.teacherSectionTitle}>{user?.name}</Text>
+        <Text style={styles.teacherListRowSubtext}>{user?.email}</Text>
+        <Text style={[styles.teacherPill, styles.teacherPillMuted, { marginTop: 8 }]}>{roleLabel(role)}</Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>School</Text>
-        <Text style={styles.listRowSubtext}>{branding.schoolName}</Text>
+      <View style={styles.teacherCard}>
+        <Text style={styles.teacherSectionTitle}>School</Text>
+        <Text style={styles.teacherListRowSubtext}>{branding.schoolName}</Text>
       </View>
 
       {permissions.data?.hasCustomRole ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Custom Role Scope</Text>
-          <Text style={styles.listRowSubtext}>
+        <View style={styles.teacherCard}>
+          <Text style={styles.teacherSectionTitle}>Custom Role Scope</Text>
+          <Text style={styles.teacherListRowSubtext}>
             {permissions.data.scope.unrestricted ? 'Unrestricted' : `${permissions.data.scope.sectionIds.length} section(s)`}
           </Text>
         </View>
       ) : null}
 
-      <View style={[styles.card, styles.lastCard]}>
-        <Pressable style={[styles.primaryButton, { backgroundColor: branding.primaryColor }]} onPress={logout}>
-          <Text style={styles.primaryButtonText}>Log out</Text>
+      <View style={[styles.teacherCard, styles.teacherLastCard]}>
+        <Pressable style={[styles.teacherPrimaryButton, { backgroundColor: tc.primary }]} onPress={logout}>
+          <Text style={styles.teacherPrimaryButtonText}>Log out</Text>
         </Pressable>
       </View>
     </ScrollView>

@@ -15,6 +15,9 @@ import { computeVisibleTeacherPortalModules } from '@/lib/teacher-portal-modules
 import { formatDate, formatStatus } from '@/lib/format';
 import { EmptyState } from '@/components/EmptyState';
 import { styles } from '@/lib/styles';
+import { TeacherTheme } from '@/constants/theme';
+
+const tc = TeacherTheme.colors;
 
 function todayBackendDayOfWeek() {
   const jsDay = new Date().getDay(); // 0 = Sun .. 6 = Sat
@@ -33,7 +36,7 @@ function todayBackendDayOfWeek() {
 // here as a compact "at a glance" strip — they were on the old Home
 // dashboard and have no grid tile of their own to relocate to.
 export default function TeacherHomeScreen() {
-  const { role, user, branding, logout } = useAuth();
+  const { role, user, logout } = useAuth();
   const router = useRouter();
   const { hasFeature } = useFeatureBootstrap();
   const attendance = useTeacherSelfAttendance();
@@ -70,7 +73,7 @@ export default function TeacherHomeScreen() {
   return (
     <PortalGrid
       title={`Hi, ${user?.name || 'Teacher'}`}
-      color={branding.primaryColor}
+      color={tc.primary}
       modules={modules}
       onNavigate={(route) => router.push(route as never)}
       onSearch={() => router.push('/teacher/portal-search')}
@@ -82,42 +85,44 @@ export default function TeacherHomeScreen() {
           <OperationsBanner status={opsStatus.data} />
 
           {attendanceEnabled ? (
-            <View style={[styles.card, styles.attendanceCard]}>
-              <View style={styles.cardHeaderRow}>
+            <View style={[styles.teacherCard, { gap: 12 }]}>
+              <View style={styles.teacherCardHeaderRow}>
                 <View>
-                  <Text style={styles.sectionTitle}>Today&apos;s Attendance</Text>
-                  <Text style={styles.listRowSubtext}>{formatDate(new Date().toISOString())}</Text>
+                  <Text style={styles.teacherSectionTitle}>Today&apos;s Attendance</Text>
+                  <Text style={styles.teacherListRowSubtext}>{formatDate(new Date().toISOString())}</Text>
                 </View>
-                {attendance.loading ? <ActivityIndicator color={branding.primaryColor} /> : null}
+                {attendance.loading ? <ActivityIndicator color={tc.primary} /> : null}
               </View>
               {attendance.error ? <Text style={styles.inlineErrorText}>{attendance.error}</Text> : null}
-              <Text style={styles.emptyText}>
+              <Text style={styles.teacherEmptyText}>
                 Status: {formatStatus(attendance.attendance?.status || attendance.attendance?.attendance?.status || 'Not marked')}
               </Text>
               {!attendance.attendance?.attendance && attendance.attendance?.canMarkPresent ? (
                 <Pressable
-                  style={[styles.primaryButton, { backgroundColor: branding.primaryColor }, attendance.marking && styles.primaryButtonDisabled]}
+                  style={[styles.teacherPrimaryButton, { backgroundColor: tc.primary }, attendance.marking && styles.teacherPrimaryButtonDisabled]}
                   onPress={attendance.markPresent}
                   disabled={attendance.marking}
                 >
-                  {attendance.marking ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Mark Present</Text>}
+                  {attendance.marking ? <ActivityIndicator color="#fff" /> : <Text style={styles.teacherPrimaryButtonText}>Mark Present</Text>}
                 </Pressable>
               ) : null}
             </View>
           ) : null}
 
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Today&apos;s Schedule</Text>
+          <View style={styles.teacherCard}>
+            <Text style={styles.teacherSectionTitle}>Today&apos;s Schedule</Text>
             {todaySlots.map((slot, index) => (
-              <View key={`${slot.period}-${index}`} style={styles.teacherListItem}>
-                <View style={[styles.periodBadge, { borderColor: branding.primaryColor }]}>
-                  <Text style={[styles.periodBadgeText, { color: branding.primaryColor }]}>P{slot.period}</Text>
-                </View>
-                <View style={styles.teacherListBody}>
-                  <Text style={styles.listRowTitle}>{slot.subject || 'Subject TBD'}</Text>
-                  <Text style={styles.listRowSubtext}>
-                    {slot.className}-{slot.sectionName}
-                  </Text>
+              <View key={`${slot.period}-${index}`} style={styles.teacherListRow}>
+                <View style={styles.teacherListRowLeft}>
+                  <View style={[styles.teacherRollBadge, { borderRadius: TeacherTheme.radii.DEFAULT, backgroundColor: tc.primary + '1f' }]}>
+                    <Text style={[styles.teacherRollBadgeText, { color: tc.primary }]}>P{slot.period}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.teacherListRowTitle}>{slot.subject || 'Subject TBD'}</Text>
+                    <Text style={styles.teacherListRowSubtext}>
+                      {slot.className}-{slot.sectionName}
+                    </Text>
+                  </View>
                 </View>
               </View>
             ))}
@@ -126,18 +131,18 @@ export default function TeacherHomeScreen() {
             ) : null}
           </View>
 
-          <View style={[styles.card, styles.lastCard]}>
-            <Text style={styles.sectionTitle}>At a Glance</Text>
-            <Text style={styles.emptyText}>
+          <View style={[styles.teacherCard, styles.teacherLastCard]}>
+            <Text style={styles.teacherSectionTitle}>At a Glance</Text>
+            <Text style={styles.teacherEmptyText}>
               {activeHomeworkCount} active homework assignment{activeHomeworkCount === 1 ? '' : 's'}
             </Text>
-            <Text style={styles.emptyText}>
+            <Text style={styles.teacherEmptyText}>
               Early Leave:{' '}
               {latestEarlyLeave
                 ? `${formatDate(latestEarlyLeave.date)} — after P${latestEarlyLeave.leaveAfterPeriod} — ${formatStatus(latestEarlyLeave.status)}`
                 : 'No requests.'}
             </Text>
-            <Text style={styles.emptyText}>
+            <Text style={styles.teacherEmptyText}>
               Full Leave:{' '}
               {latestFullLeave
                 ? `${formatDate(latestFullLeave.fromDate)} – ${formatDate(latestFullLeave.toDate)} — ${formatStatus(latestFullLeave.status)}`

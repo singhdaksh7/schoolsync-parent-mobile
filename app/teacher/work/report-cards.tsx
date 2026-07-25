@@ -9,9 +9,12 @@ import { can } from '@/lib/teacher-permissions';
 import { downloadAuthenticatedPdf, openOrSharePdf } from '@/lib/pdf-download';
 import { formatDate } from '@/lib/format';
 import { styles } from '@/lib/styles';
+import { TeacherTheme } from '@/constants/theme';
+
+const tc = TeacherTheme.colors;
 
 export default function TeacherReportCardsScreen() {
-  const { role, branding, token } = useAuth();
+  const { role, token } = useAuth();
   const { hasFeature } = useFeatureBootstrap();
   const permissions = useTeacherPermissions();
   const reportCards = useTeacherReportCards();
@@ -47,12 +50,12 @@ export default function TeacherReportCardsScreen() {
 
   if (!hasFeature('REPORT_CARDS')) {
     return (
-      <View style={styles.container}>
-        <View style={[styles.header, { backgroundColor: branding.primaryColor }]}>
-          <Text style={styles.title}>Report Cards</Text>
+      <View style={styles.teacherScreen}>
+        <View style={styles.teacherHeader}>
+          <Text style={styles.teacherHeaderTitle}>Report Cards</Text>
         </View>
-        <View style={[styles.card, styles.lastCard]}>
-          <Text style={styles.emptyText}>Report Cards are not enabled for your school.</Text>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
+          <Text style={styles.teacherEmptyText}>Report Cards are not enabled for your school.</Text>
         </View>
       </View>
     );
@@ -60,11 +63,11 @@ export default function TeacherReportCardsScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={styles.teacherScreen}
       refreshControl={<RefreshControl refreshing={reportCards.refreshing} onRefresh={reportCards.handleRefresh} />}
     >
-      <View style={[styles.header, { backgroundColor: branding.primaryColor }]}>
-        <Text style={styles.title}>Report Cards</Text>
+      <View style={styles.teacherHeader}>
+        <Text style={styles.teacherHeaderTitle}>Report Cards</Text>
       </View>
 
       {reportCards.error ? <Text style={styles.errorBanner}>{reportCards.error}</Text> : null}
@@ -84,25 +87,25 @@ export default function TeacherReportCardsScreen() {
           ) : (
             <Text style={styles.inlineErrorText}>Checking status…</Text>
           )}
-          <Pressable style={styles.smallButton} onPress={reportCards.dismissActiveJob}>
+          <Pressable style={[styles.smallButton, { backgroundColor: tc.secondary }]} onPress={reportCards.dismissActiveJob}>
             <Text style={styles.smallButtonText}>Dismiss</Text>
           </Pressable>
         </View>
       ) : null}
 
       {!reportCards.mentorSection ? (
-        <View style={[styles.card, styles.lastCard]}>
-          <Text style={styles.emptyText}>Only class mentors can generate report cards.</Text>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
+          <Text style={styles.teacherEmptyText}>Only class mentors can generate report cards.</Text>
         </View>
       ) : !canView ? (
-        <View style={[styles.card, styles.lastCard]}>
-          <Text style={styles.emptyText}>You do not have permission to view report cards.</Text>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
+          <Text style={styles.teacherEmptyText}>You do not have permission to view report cards.</Text>
         </View>
       ) : (
         <>
           {canGenerate ? (
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Generate</Text>
+            <View style={styles.teacherCard}>
+              <Text style={styles.teacherSectionTitle}>Generate</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {reportCards.schemes.map((scheme) => (
                   <Pressable
@@ -115,25 +118,25 @@ export default function TeacherReportCardsScreen() {
                   </Pressable>
                 ))}
               </ScrollView>
-              {reportCards.generating ? <ActivityIndicator color={branding.primaryColor} /> : null}
-              {reportCards.schemes.length === 0 ? <Text style={styles.emptyText}>No exam schemes available.</Text> : null}
+              {reportCards.generating ? <ActivityIndicator color={tc.primary} /> : null}
+              {reportCards.schemes.length === 0 ? <Text style={styles.teacherEmptyText}>No exam schemes available.</Text> : null}
             </View>
           ) : null}
 
           {reportCards.reportCards.map((card) => (
-            <View key={card.id} style={styles.card}>
-              <View style={styles.cardHeaderRow}>
-                <Text style={styles.listRowTitle}>{card.student.name}</Text>
-                <Text style={styles.statusPill}>{card.status}</Text>
+            <View key={card.id} style={styles.teacherCard}>
+              <View style={styles.teacherCardHeaderRow}>
+                <Text style={styles.teacherListRowTitle}>{card.student.name}</Text>
+                <Text style={[styles.teacherPill, card.status === 'PUBLISHED' ? styles.teacherPillPresent : styles.teacherPillMuted]}>{card.status}</Text>
               </View>
-              <Text style={styles.listRowSubtext}>
+              <Text style={styles.teacherListRowSubtext}>
                 Roll {card.student.rollNo} · {card.examScheme.name} · {card.percentage}% · {card.grade}
               </Text>
-              {card.publishedAt ? <Text style={styles.remarkText}>Published {formatDate(card.publishedAt)}</Text> : null}
+              {card.publishedAt ? <Text style={styles.teacherMeta}>Published {formatDate(card.publishedAt)}</Text> : null}
 
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                 {canPublish && card.status !== 'PUBLISHED' ? (
-                  <Pressable style={styles.smallButton} onPress={() => reportCards.publish(card.id)} disabled={reportCards.publishingId === card.id}>
+                  <Pressable style={[styles.smallButton, { backgroundColor: tc.secondary }]} onPress={() => reportCards.publish(card.id)} disabled={reportCards.publishingId === card.id}>
                     {reportCards.publishingId === card.id ? (
                       <ActivityIndicator color="#fff" size="small" />
                     ) : (
@@ -142,7 +145,7 @@ export default function TeacherReportCardsScreen() {
                   </Pressable>
                 ) : null}
                 {canDownload ? (
-                  <Pressable style={styles.smallButton} onPress={() => handleDownload(card.id)} disabled={downloadingId === card.id}>
+                  <Pressable style={[styles.smallButton, { backgroundColor: tc.secondary }]} onPress={() => handleDownload(card.id)} disabled={downloadingId === card.id}>
                     {downloadingId === card.id ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.smallButtonText}>PDF</Text>}
                   </Pressable>
                 ) : null}
@@ -151,8 +154,8 @@ export default function TeacherReportCardsScreen() {
           ))}
 
           {reportCards.reportCards.length === 0 && !reportCards.loading ? (
-            <View style={[styles.card, styles.lastCard]}>
-              <Text style={styles.emptyText}>No report cards generated yet.</Text>
+            <View style={[styles.teacherCard, styles.teacherLastCard]}>
+              <Text style={styles.teacherEmptyText}>No report cards generated yet.</Text>
             </View>
           ) : null}
         </>

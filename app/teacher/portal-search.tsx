@@ -5,12 +5,16 @@ import { useAuth } from '@/lib/auth-context';
 import { useFeatureBootstrap } from '@/hooks/useFeatureBootstrap';
 import { useTeacherOperationsSelfStatus } from '@/hooks/useTeacherOperationsSelfStatus';
 import { computeVisibleTeacherPortalModules } from '@/lib/teacher-portal-modules';
+import { TeacherTheme } from '@/constants/theme';
 
 // Filterable list rendering the same Teacher Portal tiles shown on the Home
 // tab's grid — see lib/teacher-portal-modules.ts for the shared,
-// unit-tested source of truth for what's real vs. dropped.
+// unit-tested source of truth for what's real vs. dropped. PortalSearch
+// itself (components/PortalSearch.tsx) is shared with Student/Parent and is
+// NOT modified — only the `color` prop passed here changes, to the fixed
+// Stitch teacher navy instead of per-school branding.
 export default function TeacherPortalSearchScreen() {
-  const { role, branding, logout } = useAuth();
+  const { role, logout } = useAuth();
   const { hasFeature } = useFeatureBootstrap();
   const opsStatus = useTeacherOperationsSelfStatus();
   const router = useRouter();
@@ -21,7 +25,7 @@ export default function TeacherPortalSearchScreen() {
 
   return (
     <PortalSearch
-      color={branding.primaryColor}
+      color={TeacherTheme.colors.primary}
       modules={modules}
       onNavigate={(route) => router.push(route as never)}
       onBack={() => router.back()}

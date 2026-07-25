@@ -6,9 +6,10 @@ import { EmptyState } from '@/components/EmptyState';
 import { useTeacherTransportTrips } from '@/hooks/useTeacherTransportTrips';
 import { useAuth } from '@/lib/auth-context';
 import { styles } from '@/lib/styles';
+import { TeacherTheme } from '@/constants/theme';
 
 export default function TeacherTransportScreen() {
-  const { role, branding } = useAuth();
+  const { role } = useAuth();
   const transport = useTeacherTransportTrips();
 
   if (role !== 'TEACHER') return <Redirect href="/" />;
@@ -18,8 +19,8 @@ export default function TeacherTransportScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={transport.loading} onRefresh={transport.refresh} />}
     >
-      <View style={[styles.header, { backgroundColor: branding.primaryColor }]}>
-        <Text style={styles.title}>Transport</Text>
+      <View style={styles.teacherHeader}>
+        <Text style={styles.teacherHeaderTitle}>Transport</Text>
         {transport.loading ? <ActivityIndicator color="#fff" /> : null}
       </View>
 
@@ -38,7 +39,7 @@ export default function TeacherTransportScreen() {
             routeName={trip.route.name}
             loading={false}
             error={null}
-            color={branding.primaryColor}
+            color={TeacherTheme.colors.primary}
           />
         ))
       )}

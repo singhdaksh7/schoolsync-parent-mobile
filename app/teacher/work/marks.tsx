@@ -9,13 +9,16 @@ import { useTeacherPermissions } from '@/hooks/useTeacherPermissions';
 import { findInvalidMarkStudentIds } from '@/lib/marks-validation';
 import { can } from '@/lib/teacher-permissions';
 import { styles } from '@/lib/styles';
+import { TeacherTheme } from '@/constants/theme';
 import type { TeacherAssignment, TeacherExamItem } from '@/lib/types';
+
+const tc = TeacherTheme.colors;
 
 // The exam is picked from GET /api/teacher/exams (useTeacherMarks.exams) —
 // never manually typed. Section comes from the teacher's real assignments
 // (useTeacherHomework), never invented.
 export default function TeacherMarksScreen() {
-  const { role, branding } = useAuth();
+  const { role } = useAuth();
   const { hasFeature } = useFeatureBootstrap();
   const permissions = useTeacherPermissions();
   const homework = useTeacherHomework();
@@ -74,24 +77,24 @@ export default function TeacherMarksScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={[styles.header, { backgroundColor: branding.primaryColor }]}>
-        <Text style={styles.title}>Marks</Text>
+    <ScrollView style={styles.teacherScreen}>
+      <View style={styles.teacherHeader}>
+        <Text style={styles.teacherHeaderTitle}>Marks</Text>
       </View>
 
       {!hasFeature('MOBILE_APP') ? null : (
-        <View style={styles.card}>
-          <Text style={styles.label}>Class / Section</Text>
+        <View style={styles.teacherCard}>
+          <Text style={styles.teacherInputLabel}>Class / Section</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {homework.assignments.map((assignment) => {
               const isSelected = selectedAssignment?.sectionId === assignment.sectionId && selectedAssignment?.subject === assignment.subject;
               return (
                 <Pressable
                   key={`${assignment.sectionId}-${assignment.subject}`}
-                  style={[styles.childChip, isSelected && { borderColor: branding.primaryColor, backgroundColor: '#eef6ff' }]}
+                  style={[styles.childChip, isSelected && { borderColor: tc.secondary, backgroundColor: tc.secondaryContainer + '1a' }]}
                   onPress={() => setSelectedAssignment(assignment)}
                 >
-                  <Text style={[styles.childChipText, isSelected && { color: branding.primaryColor }]}>{assignment.subject}</Text>
+                  <Text style={[styles.childChipText, isSelected && { color: tc.secondary }]}>{assignment.subject}</Text>
                   <Text style={styles.childChipSubtext}>
                     {assignment.className}-{assignment.sectionName}
                   </Text>
@@ -100,11 +103,11 @@ export default function TeacherMarksScreen() {
             })}
           </ScrollView>
 
-          <Text style={styles.label}>Exam</Text>
+          <Text style={styles.teacherInputLabel}>Exam</Text>
           {marks.examsLoading ? (
-            <ActivityIndicator color={branding.primaryColor} />
+            <ActivityIndicator color={tc.primary} />
           ) : marks.exams.length === 0 ? (
-            <Text style={styles.emptyText}>No exams available.</Text>
+            <Text style={styles.teacherEmptyText}>No exams available.</Text>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {marks.exams.map((exam) => {
@@ -112,10 +115,10 @@ export default function TeacherMarksScreen() {
                 return (
                   <Pressable
                     key={exam.id}
-                    style={[styles.childChip, isSelected && { borderColor: branding.primaryColor, backgroundColor: '#eef6ff' }]}
+                    style={[styles.childChip, isSelected && { borderColor: tc.secondary, backgroundColor: tc.secondaryContainer + '1a' }]}
                     onPress={() => setSelectedExam(exam)}
                   >
-                    <Text style={[styles.childChipText, isSelected && { color: branding.primaryColor }]}>{exam.name}</Text>
+                    <Text style={[styles.childChipText, isSelected && { color: tc.secondary }]}>{exam.name}</Text>
                     <Text style={styles.childChipSubtext}>
                       {exam.examSchemeName} · max {exam.maxMarks}
                     </Text>
@@ -127,11 +130,11 @@ export default function TeacherMarksScreen() {
           {marks.examsError ? <Text style={styles.errorBanner}>{marks.examsError}</Text> : null}
 
           <Pressable
-            style={[styles.primaryButton, { backgroundColor: branding.primaryColor }, (!selectedAssignment || !examId) && styles.primaryButtonDisabled]}
+            style={[styles.teacherPrimaryButton, { backgroundColor: tc.primary, marginTop: 12 }, (!selectedAssignment || !examId) && styles.teacherPrimaryButtonDisabled]}
             onPress={handleLoad}
             disabled={!selectedAssignment || !examId || marks.loading}
           >
-            {marks.loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Load Students</Text>}
+            {marks.loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.teacherPrimaryButtonText}>Load Students</Text>}
           </Pressable>
         </View>
       )}
@@ -139,27 +142,32 @@ export default function TeacherMarksScreen() {
       {marks.error ? <Text style={styles.errorBanner}>{marks.error}</Text> : null}
 
       {marks.context && selectedAssignment && !canView ? (
-        <View style={[styles.card, styles.lastCard]}>
-          <Text style={styles.emptyText}>You do not have permission to view marks for this section.</Text>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
+          <Text style={styles.teacherEmptyText}>You do not have permission to view marks for this section.</Text>
         </View>
       ) : null}
 
       {marks.context && selectedAssignment && canView ? (
-        <View style={[styles.card, styles.lastCard]}>
-          <Text style={styles.sectionTitle}>Students</Text>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
+          <Text style={styles.teacherSectionTitle}>Students</Text>
           {selectedAssignment.students.map((student) => {
             const isInvalid = invalidRows.has(student.id);
             return (
-              <View key={student.id} style={styles.listRow}>
-                <View style={styles.listRowLeft}>
-                  <Text style={styles.listRowTitle}>{student.name}</Text>
-                  <Text style={styles.listRowSubtext}>Roll {student.rollNo}</Text>
+              <View key={student.id} style={styles.teacherListRow}>
+                <View style={styles.teacherListRowLeft}>
+                  <View style={styles.teacherRollBadge}>
+                    <Text style={styles.teacherRollBadgeText}>{student.rollNo}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.teacherListRowTitle}>{student.name}</Text>
+                    <Text style={styles.teacherListRowSubtext}>Roll {student.rollNo}</Text>
+                  </View>
                 </View>
                 <TextInput
-                  style={[styles.submitInput, { width: 80 }, isInvalid && { borderColor: '#d32f2f' }]}
+                  style={[styles.teacherInput, { width: 80 }, isInvalid && { borderColor: tc.error }]}
                   keyboardType="numeric"
                   placeholder="Marks"
-                  placeholderTextColor="#8a8a8a"
+                  placeholderTextColor={tc.onSurfaceVariant}
                   value={draftFor(student.id)}
                   onChangeText={(v) => updateDraft(student.id, v)}
                   editable={canEnter}
@@ -170,11 +178,11 @@ export default function TeacherMarksScreen() {
           {invalidRows.size > 0 ? <Text style={styles.errorText}>{invalidRows.size} row(s) exceed the maximum marks or are invalid.</Text> : null}
           {canEnter ? (
             <Pressable
-              style={[styles.primaryButton, { backgroundColor: branding.primaryColor }, (invalidRows.size > 0 || marks.saving) && styles.primaryButtonDisabled]}
+              style={[styles.teacherPrimaryButton, { backgroundColor: tc.primary, marginTop: 12 }, (invalidRows.size > 0 || marks.saving) && styles.teacherPrimaryButtonDisabled]}
               onPress={handleSave}
               disabled={invalidRows.size > 0 || marks.saving}
             >
-              {marks.saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Save Marks</Text>}
+              {marks.saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.teacherPrimaryButtonText}>Save Marks</Text>}
             </Pressable>
           ) : null}
         </View>

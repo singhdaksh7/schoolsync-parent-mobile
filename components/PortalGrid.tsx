@@ -1,6 +1,7 @@
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styles } from '@/lib/styles';
 
 export type PortalModule = {
@@ -37,12 +38,13 @@ export function PortalGrid({
   refreshing?: boolean;
   onRefresh?: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   return (
     <ScrollView
       style={styles.container}
       refreshControl={onRefresh ? <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} /> : undefined}
     >
-      <View style={[styles.subScreenHeader, { backgroundColor: color }]}>
+      <View style={[styles.subScreenHeader, { backgroundColor: color, paddingTop: insets.top + styles.subScreenHeader.paddingVertical }]}>
         <Text style={styles.subScreenHeaderTitle}>{title}</Text>
         <View style={styles.subScreenHeaderActions}>
           <Pressable onPress={onSearch} hitSlop={10}>

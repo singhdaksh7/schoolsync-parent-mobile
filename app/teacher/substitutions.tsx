@@ -8,13 +8,14 @@ import { CardSkeleton } from '@/components/Skeleton';
 import { EmptyState } from '@/components/EmptyState';
 import { classSectionLabel, formatDate } from '@/lib/format';
 import { styles } from '@/lib/styles';
+import { TeacherTheme } from '@/constants/theme';
 
 // New detail screen for a real, previously screen-less endpoint
 // (GET /api/teacher/arrangements) — the old Home dashboard only showed the
 // top 3 substitutions inline with no "view all" destination. Read-only: a
 // normal Teacher has no management controls here (see useTeacherArrangements).
 export default function TeacherSubstitutionsScreen() {
-  const { role, branding } = useAuth();
+  const { role } = useAuth();
   const arrangements = useTeacherArrangements();
   const router = useRouter();
 
@@ -25,25 +26,25 @@ export default function TeacherSubstitutionsScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={arrangements.refreshing} onRefresh={arrangements.handleRefresh} />}
     >
-      <SubScreenHeader title="Substitutions" color={branding.primaryColor} onBack={() => router.back()} />
+      <SubScreenHeader title="Substitutions" color={TeacherTheme.colors.primary} onBack={() => router.back()} />
 
       {arrangements.error ? <Text style={styles.errorBanner}>{arrangements.error}</Text> : null}
 
       {arrangements.loading && arrangements.arrangements.length === 0 ? (
         <CardSkeleton rows={3} />
       ) : (
-        <View style={[styles.card, styles.lastCard]}>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
           {arrangements.arrangements.map((item) => (
-            <View key={item.id} style={styles.teacherListItem}>
-              <View style={styles.teacherListBody}>
-                <Text style={styles.listRowTitle}>{item.subject || 'Substitution'}</Text>
-                <Text style={styles.listRowSubtext}>
+            <View key={item.id} style={styles.teacherListRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.teacherListRowTitle}>{item.subject || 'Substitution'}</Text>
+                <Text style={styles.teacherListRowSubtext}>
                   {classSectionLabel(item.section)}
                   {item.date ? ` · ${formatDate(item.date)}` : ''}
                   {item.period ? ` · P${item.period}` : ''}
                 </Text>
-                {item.absentTeacher?.name ? <Text style={styles.listRowSubtext}>Covering for {item.absentTeacher.name}</Text> : null}
-                {item.reason ? <Text style={styles.remarkText}>{item.reason}</Text> : null}
+                {item.absentTeacher?.name ? <Text style={styles.teacherListRowSubtext}>Covering for {item.absentTeacher.name}</Text> : null}
+                {item.reason ? <Text style={styles.teacherMeta}>{item.reason}</Text> : null}
               </View>
             </View>
           ))}
