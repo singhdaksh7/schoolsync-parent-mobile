@@ -6,7 +6,10 @@ import { useOperationsTeacherStatus } from '@/hooks/useOperationsTeacherStatus';
 import { useTeacherProfile } from '@/hooks/useTeacherProfile';
 import { isSelfOperationsTarget } from '@/lib/operations-self-protection';
 import { styles } from '@/lib/styles';
+import { TeacherTheme } from '@/constants/theme';
 import type { OperationsBaseAttendanceStatus } from '@/lib/types';
+
+const tc = TeacherTheme.colors;
 
 const FILTERS: { key: OperationsBaseAttendanceStatus | 'ALL'; label: string }[] = [
   { key: 'ALL', label: 'All' },
@@ -17,7 +20,7 @@ const FILTERS: { key: OperationsBaseAttendanceStatus | 'ALL'; label: string }[] 
 ];
 
 export default function OperationsTeacherStatusScreen() {
-  const { role, branding } = useAuth();
+  const { role } = useAuth();
   const teacherStatus = useOperationsTeacherStatus();
   const profile = useTeacherProfile();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]['key']>('ALL');
@@ -33,30 +36,30 @@ export default function OperationsTeacherStatusScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={styles.teacherScreen}
       refreshControl={<RefreshControl refreshing={teacherStatus.refreshing} onRefresh={teacherStatus.handleRefresh} />}
     >
       {teacherStatus.error ? <Text style={styles.errorBanner}>{teacherStatus.error}</Text> : null}
-      {teacherStatus.loading && !teacherStatus.data ? <ActivityIndicator color={branding.primaryColor} /> : null}
+      {teacherStatus.loading && !teacherStatus.data ? <ActivityIndicator color={tc.primary} /> : null}
 
       {teacherStatus.data ? (
-        <View style={styles.card}>
+        <View style={styles.teacherCard}>
           <View style={styles.grid}>
-            <View style={styles.overviewTile}>
-              <Text style={[styles.overviewNumber, { color: branding.primaryColor }]}>{teacherStatus.data.summary.present}</Text>
-              <Text style={styles.overviewLabel}>Present</Text>
+            <View style={[styles.overviewTile, { backgroundColor: tc.surfaceContainerLow, borderColor: tc.cardBorder }]}>
+              <Text style={[styles.teacherStatValue, { color: tc.primary }]}>{teacherStatus.data.summary.present}</Text>
+              <Text style={styles.teacherLabelCaps}>Present</Text>
             </View>
-            <View style={styles.overviewTile}>
-              <Text style={[styles.overviewNumber, { color: branding.primaryColor }]}>{teacherStatus.data.summary.absent}</Text>
-              <Text style={styles.overviewLabel}>Absent</Text>
+            <View style={[styles.overviewTile, { backgroundColor: tc.surfaceContainerLow, borderColor: tc.cardBorder }]}>
+              <Text style={[styles.teacherStatValue, { color: tc.primary }]}>{teacherStatus.data.summary.absent}</Text>
+              <Text style={styles.teacherLabelCaps}>Absent</Text>
             </View>
-            <View style={styles.overviewTile}>
-              <Text style={[styles.overviewNumber, { color: branding.primaryColor }]}>{teacherStatus.data.summary.onLeave}</Text>
-              <Text style={styles.overviewLabel}>On Leave</Text>
+            <View style={[styles.overviewTile, { backgroundColor: tc.surfaceContainerLow, borderColor: tc.cardBorder }]}>
+              <Text style={[styles.teacherStatValue, { color: tc.primary }]}>{teacherStatus.data.summary.onLeave}</Text>
+              <Text style={styles.teacherLabelCaps}>On Leave</Text>
             </View>
-            <View style={styles.overviewTile}>
-              <Text style={[styles.overviewNumber, { color: branding.primaryColor }]}>{teacherStatus.data.summary.notMarked}</Text>
-              <Text style={styles.overviewLabel}>Not Marked</Text>
+            <View style={[styles.overviewTile, { backgroundColor: tc.surfaceContainerLow, borderColor: tc.cardBorder }]}>
+              <Text style={[styles.teacherStatValue, { color: tc.primary }]}>{teacherStatus.data.summary.notMarked}</Text>
+              <Text style={styles.teacherLabelCaps}>Not Marked</Text>
             </View>
           </View>
         </View>
@@ -71,23 +74,23 @@ export default function OperationsTeacherStatusScreen() {
       </View>
 
       {rows.length === 0 && !teacherStatus.loading ? (
-        <View style={[styles.card, styles.lastCard]}>
-          <Text style={styles.emptyText}>No teachers match this filter.</Text>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
+          <Text style={styles.teacherEmptyText}>No teachers match this filter.</Text>
         </View>
       ) : null}
 
       {rows.map((row, index) => {
         const isSelf = isSelfOperationsTarget(row.teacherId, myTeacherId);
         return (
-          <View key={row.teacherId} style={[styles.card, index === rows.length - 1 && styles.lastCard]}>
-            <View style={styles.cardHeaderRow}>
-              <Text style={styles.listRowTitle}>
+          <View key={row.teacherId} style={[styles.teacherCard, index === rows.length - 1 && styles.teacherLastCard]}>
+            <View style={styles.teacherCardHeaderRow}>
+              <Text style={styles.teacherListRowTitle}>
                 {row.teacherName}
                 {isSelf ? ' (You)' : ''}
               </Text>
-              <Text style={styles.statusPill}>{row.baseStatus.replace('_', ' ')}</Text>
+              <Text style={[styles.teacherPill, styles.teacherPillMuted]}>{row.baseStatus.replace('_', ' ')}</Text>
             </View>
-            <Text style={styles.listRowSubtext}>
+            <Text style={styles.teacherListRowSubtext}>
               {row.operationalStatus === 'IN_CLASS' && row.currentAssignment
                 ? `In class · ${row.currentAssignment.className}-${row.currentAssignment.sectionName}`
                 : row.operationalStatus.replace('_', ' ')}
@@ -97,7 +100,7 @@ export default function OperationsTeacherStatusScreen() {
             {!isSelf && row.baseStatus !== 'ON_LEAVE' ? (
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                 <Pressable
-                  style={styles.smallButton}
+                  style={[styles.smallButton, { backgroundColor: tc.secondary }]}
                   onPress={() => teacherStatus.setStatus(row.teacherId, 'PRESENT')}
                   disabled={teacherStatus.updatingId === row.teacherId}
                 >
@@ -108,7 +111,7 @@ export default function OperationsTeacherStatusScreen() {
                   )}
                 </Pressable>
                 <Pressable
-                  style={styles.smallButton}
+                  style={[styles.smallButton, { backgroundColor: tc.secondary }]}
                   onPress={() => teacherStatus.setStatus(row.teacherId, 'ABSENT')}
                   disabled={teacherStatus.updatingId === row.teacherId}
                 >

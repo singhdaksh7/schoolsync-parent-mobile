@@ -11,10 +11,13 @@ import { useTeacherSubmissions } from '@/hooks/useTeacherSubmissions';
 import { can } from '@/lib/teacher-permissions';
 import { formatDateTime, formatStatus } from '@/lib/format';
 import { styles } from '@/lib/styles';
+import { TeacherTheme } from '@/constants/theme';
+
+const tc = TeacherTheme.colors;
 
 export default function TeacherHomeworkDetailScreen() {
   const { homeworkId } = useLocalSearchParams<{ homeworkId: string }>();
-  const { role, branding } = useAuth();
+  const { role } = useAuth();
   const { hasFeature } = useFeatureBootstrap();
   const permissions = useTeacherPermissions();
   const homeworkActions = useTeacherHomework();
@@ -102,51 +105,51 @@ export default function TeacherHomeworkDetailScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={styles.teacherScreen}
       refreshControl={<RefreshControl refreshing={submissionsHook.refreshing} onRefresh={submissionsHook.handleRefresh} />}
     >
       {!hasFeature('HOMEWORK') ? (
-        <View style={[styles.card, styles.lastCard]}>
-          <Text style={styles.emptyText}>Homework is not enabled for your school.</Text>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
+          <Text style={styles.teacherEmptyText}>Homework is not enabled for your school.</Text>
         </View>
       ) : !homework ? (
         <View style={styles.loaderWrap}>
-          <ActivityIndicator size="large" color={branding.primaryColor} />
+          <ActivityIndicator size="large" color={tc.primary} />
         </View>
       ) : (
         <>
           {submissionsHook.error ? <Text style={styles.errorBanner}>{submissionsHook.error}</Text> : null}
 
-          <View style={styles.card}>
+          <View style={styles.teacherCard}>
             {editing ? (
               <>
-                <Text style={styles.label}>Title</Text>
-                <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholderTextColor="#8a8a8a" />
-                <Text style={styles.label}>Due Date (YYYY-MM-DD)</Text>
-                <TextInput style={styles.input} value={dueDate} onChangeText={setDueDate} placeholderTextColor="#8a8a8a" />
-                <Text style={styles.label}>Description</Text>
-                <TextInput style={styles.input} value={description} onChangeText={setDescription} placeholderTextColor="#8a8a8a" />
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Pressable style={[styles.primaryButton, { backgroundColor: branding.primaryColor, flex: 1 }]} onPress={saveEdit} disabled={homeworkActions.editing}>
-                    {homeworkActions.editing ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Save</Text>}
+                <Text style={styles.teacherInputLabel}>Title</Text>
+                <TextInput style={styles.teacherInput} value={title} onChangeText={setTitle} placeholderTextColor={tc.onSurfaceVariant} />
+                <Text style={styles.teacherInputLabel}>Due Date (YYYY-MM-DD)</Text>
+                <TextInput style={styles.teacherInput} value={dueDate} onChangeText={setDueDate} placeholderTextColor={tc.onSurfaceVariant} />
+                <Text style={styles.teacherInputLabel}>Description</Text>
+                <TextInput style={styles.teacherInput} value={description} onChangeText={setDescription} placeholderTextColor={tc.onSurfaceVariant} />
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  <Pressable style={[styles.teacherPrimaryButton, { backgroundColor: tc.primary, flex: 1 }]} onPress={saveEdit} disabled={homeworkActions.editing}>
+                    {homeworkActions.editing ? <ActivityIndicator color="#fff" /> : <Text style={styles.teacherPrimaryButtonText}>Save</Text>}
                   </Pressable>
-                  <Pressable style={[styles.primaryButton, { backgroundColor: '#94a3b8', flex: 1 }]} onPress={() => setEditing(false)}>
-                    <Text style={styles.primaryButtonText}>Cancel</Text>
+                  <Pressable style={[styles.teacherPrimaryButton, { backgroundColor: tc.surfaceContainerHigh, flex: 1 }]} onPress={() => setEditing(false)}>
+                    <Text style={[styles.teacherPrimaryButtonText, { color: tc.onSurface }]}>Cancel</Text>
                   </Pressable>
                 </View>
               </>
             ) : (
               <>
-                <View style={styles.cardHeaderRow}>
-                  <Text style={styles.sectionTitle}>{homework.title}</Text>
-                  <Text style={styles.statusPill}>{formatStatus(homework.status)}</Text>
+                <View style={styles.teacherCardHeaderRow}>
+                  <Text style={styles.teacherSectionTitle}>{homework.title}</Text>
+                  <Text style={[styles.teacherPill, styles.teacherPillMuted]}>{formatStatus(homework.status)}</Text>
                 </View>
-                <Text style={styles.listRowSubtext}>
+                <Text style={styles.teacherListRowSubtext}>
                   {homework.subject} · {homework.section.class.name}-{homework.section.name} · Due {formatDateTime(homework.deadlineAt)}
                 </Text>
-                {homework.description ? <Text style={styles.remarkText}>{homework.description}</Text> : null}
+                {homework.description ? <Text style={styles.teacherMeta}>{homework.description}</Text> : null}
                 {canEdit ? (
-                  <Pressable style={styles.smallButton} onPress={startEdit}>
+                  <Pressable style={[styles.smallButton, { marginTop: 8, backgroundColor: tc.secondary }]} onPress={startEdit}>
                     <Text style={styles.smallButtonText}>Edit</Text>
                   </Pressable>
                 ) : null}
@@ -154,15 +157,15 @@ export default function TeacherHomeworkDetailScreen() {
             )}
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Attachment</Text>
+          <View style={styles.teacherCard}>
+            <Text style={styles.teacherSectionTitle}>Attachment</Text>
             {homework.attachmentUrl ? (
-              <Text style={styles.remarkText}>Reference material attached.</Text>
+              <Text style={styles.teacherMeta}>Reference material attached.</Text>
             ) : (
-              <Text style={styles.emptyText}>No attachment yet.</Text>
+              <Text style={styles.teacherEmptyText}>No attachment yet.</Text>
             )}
             {canEdit ? (
-              <Pressable style={styles.smallButton} onPress={pickAndUploadAttachment} disabled={homeworkActions.uploading}>
+              <Pressable style={[styles.smallButton, { marginTop: 8, backgroundColor: tc.secondary }]} onPress={pickAndUploadAttachment} disabled={homeworkActions.uploading}>
                 {homeworkActions.uploading ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
@@ -173,25 +176,25 @@ export default function TeacherHomeworkDetailScreen() {
           </View>
 
           {dashboard.data ? (
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Class Progress</Text>
-              <Text style={styles.listRowSubtext}>
+            <View style={styles.teacherCard}>
+              <Text style={styles.teacherSectionTitle}>Class Progress</Text>
+              <Text style={styles.teacherListRowSubtext}>
                 {dashboard.data.summary.averagePercentage !== null ? `${dashboard.data.summary.averagePercentage}% average completion` : 'No data yet'}
               </Text>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryText}>Above 90%: {dashboard.data.summary.above90Count}</Text>
-                <Text style={styles.summaryText}>Below 70%: {dashboard.data.summary.below70Count}</Text>
+                <Text style={styles.teacherMeta}>Above 90%: {dashboard.data.summary.above90Count}</Text>
+                <Text style={styles.teacherMeta}>Below 70%: {dashboard.data.summary.below70Count}</Text>
               </View>
             </View>
           ) : null}
 
-          <View style={styles.card}>
-            <View style={styles.cardHeaderRow}>
-              <Text style={styles.sectionTitle}>Submissions</Text>
-              {submissionsHook.loading ? <ActivityIndicator color={branding.primaryColor} /> : null}
+          <View style={styles.teacherCard}>
+            <View style={styles.teacherCardHeaderRow}>
+              <Text style={styles.teacherSectionTitle}>Submissions</Text>
+              {submissionsHook.loading ? <ActivityIndicator color={tc.primary} /> : null}
             </View>
             {canReview && pastDeadline && unsubmittedStudentIds.length > 0 ? (
-              <Pressable style={styles.smallButton} onPress={markRemainingNotSubmitted} disabled={submissionsHook.saving}>
+              <Pressable style={[styles.smallButton, { marginTop: 8, backgroundColor: tc.secondary }]} onPress={markRemainingNotSubmitted} disabled={submissionsHook.saving}>
                 <Text style={styles.smallButtonText}>Mark {unsubmittedStudentIds.length} Remaining as Not Submitted</Text>
               </Pressable>
             ) : null}
@@ -201,51 +204,51 @@ export default function TeacherHomeworkDetailScreen() {
             const draft = scoreDraftFor(submission.id, submission);
             const isChecked = submission.submissionStatus === 'CHECKED';
             return (
-              <View key={submission.id} style={styles.card}>
-                <View style={styles.cardHeaderRow}>
-                  <Text style={styles.listRowTitle}>{submission.student.name}</Text>
-                  <Text style={styles.statusPill}>{formatStatus(submission.submissionStatus)}</Text>
+              <View key={submission.id} style={styles.teacherCard}>
+                <View style={styles.teacherCardHeaderRow}>
+                  <Text style={styles.teacherListRowTitle}>{submission.student.name}</Text>
+                  <Text style={[styles.teacherPill, styles.teacherPillMuted]}>{formatStatus(submission.submissionStatus)}</Text>
                 </View>
-                <Text style={styles.listRowSubtext}>Roll {submission.student.rollNo} · Submitted {formatDateTime(submission.submittedAt)}</Text>
+                <Text style={styles.teacherListRowSubtext}>Roll {submission.student.rollNo} · Submitted {formatDateTime(submission.submittedAt)}</Text>
                 {submission.attachmentUrl ? (
-                  <Text style={styles.remarkText}>Attachment available.</Text>
+                  <Text style={styles.teacherMeta}>Attachment available.</Text>
                 ) : (
-                  <Text style={styles.remarkText}>No attachment on file.</Text>
+                  <Text style={styles.teacherMeta}>No attachment on file.</Text>
                 )}
 
                 {canReview ? (
                   <>
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                       <TextInput
-                        style={[styles.submitInput, { flex: 1 }]}
+                        style={[styles.teacherInput, { flex: 1 }]}
                         placeholder="Score"
-                        placeholderTextColor="#8a8a8a"
+                        placeholderTextColor={tc.onSurfaceVariant}
                         keyboardType="numeric"
                         value={draft.score}
                         onChangeText={(v) => updateDraft(submission.id, { score: v })}
                       />
                       <TextInput
-                        style={[styles.submitInput, { flex: 1 }]}
+                        style={[styles.teacherInput, { flex: 1 }]}
                         placeholder="Max"
-                        placeholderTextColor="#8a8a8a"
+                        placeholderTextColor={tc.onSurfaceVariant}
                         keyboardType="numeric"
                         value={draft.maxScore}
                         onChangeText={(v) => updateDraft(submission.id, { maxScore: v })}
                       />
                     </View>
                     <TextInput
-                      style={styles.submitInput}
+                      style={[styles.teacherInput, { marginTop: 8 }]}
                       placeholder="Remark"
-                      placeholderTextColor="#8a8a8a"
+                      placeholderTextColor={tc.onSurfaceVariant}
                       value={draft.teacherRemark}
                       onChangeText={(v) => updateDraft(submission.id, { teacherRemark: v })}
                     />
-                    <Pressable style={styles.smallButton} onPress={() => saveOneScore(submission.id)} disabled={submissionsHook.saving}>
+                    <Pressable style={[styles.smallButton, { marginTop: 8, backgroundColor: tc.secondary }]} onPress={() => saveOneScore(submission.id)} disabled={submissionsHook.saving}>
                       <Text style={styles.smallButtonText}>Save Score</Text>
                     </Pressable>
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                      <Text style={styles.listRowSubtext}>Marked Complete</Text>
+                      <Text style={styles.teacherListRowSubtext}>Marked Complete</Text>
                       <Switch
                         value={isChecked}
                         onValueChange={(value) => {
@@ -261,8 +264,8 @@ export default function TeacherHomeworkDetailScreen() {
           })}
 
           {submissionsHook.submissions.length === 0 && !submissionsHook.loading ? (
-            <View style={[styles.card, styles.lastCard]}>
-              <Text style={styles.emptyText}>No submissions yet.</Text>
+            <View style={[styles.teacherCard, styles.teacherLastCard]}>
+              <Text style={styles.teacherEmptyText}>No submissions yet.</Text>
             </View>
           ) : null}
         </>

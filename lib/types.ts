@@ -583,9 +583,33 @@ export type TeacherProfile = {
 };
 
 // GET/POST /api/teacher/attendance — class/section STUDENT attendance (not
-// self-attendance, see TeacherTodayAttendance). GET returns a bare array of
-// existing Attendance rows for the requested date; the roster itself comes
-// from TeacherProfile.mentorSection.students, cross-referenced client-side.
+// self-attendance, see TeacherTodayAttendance).
+//
+// NOTE (2026-07-24): the deployed staging backend returns a session envelope
+// here, not a bare array — observed live: {sessionStatus, submittedAt,
+// submittedById, roster}, alongside new sibling routes
+// (attendance/today, /mark, /submit, /corrections). The local schoolsync
+// checkout in this workspace still shows the old bare-array route, so this
+// type is inferred from the live response's top-level keys, NOT confirmed
+// against source — the exact shape of each `roster` entry is a best-effort
+// guess (kept optional/defensive) until someone can confirm it against the
+// actual deployed route. `Array.isArray` guards at every consumption site are
+// load-bearing, not decorative, until that's confirmed.
+export type StudentAttendanceSessionResponse = {
+  sessionStatus: string;
+  submittedAt: string | null;
+  submittedById: string | null;
+  roster: StudentAttendanceRosterEntry[];
+};
+
+export type StudentAttendanceRosterEntry = {
+  studentId?: string;
+  id?: string;
+  status?: 'PRESENT' | 'ABSENT' | 'LATE' | null;
+};
+
+// Legacy bare-array shape — kept for the type-level fallback path and for
+// existing tests; no longer what the live GET actually returns (see above).
 export type StudentAttendanceRecord = {
   id: string;
   date: string;

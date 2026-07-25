@@ -5,6 +5,9 @@ import { useAuth } from '@/lib/auth-context';
 import { useOperationsActivity } from '@/hooks/useOperationsActivity';
 import { formatDate } from '@/lib/format';
 import { styles } from '@/lib/styles';
+import { TeacherTheme } from '@/constants/theme';
+
+const tc = TeacherTheme.colors;
 
 function activityLabel(code: string): string {
   return code
@@ -15,26 +18,26 @@ function activityLabel(code: string): string {
 }
 
 export default function OperationsActivityScreen() {
-  const { role, branding } = useAuth();
+  const { role } = useAuth();
   const activity = useOperationsActivity();
 
   if (role !== 'TEACHER') return <Redirect href="/" />;
 
   return (
-    <ScrollView style={styles.container} refreshControl={<RefreshControl refreshing={activity.refreshing} onRefresh={activity.handleRefresh} />}>
+    <ScrollView style={styles.teacherScreen} refreshControl={<RefreshControl refreshing={activity.refreshing} onRefresh={activity.handleRefresh} />}>
       {activity.error ? <Text style={styles.errorBanner}>{activity.error}</Text> : null}
-      {activity.loading && activity.items.length === 0 ? <ActivityIndicator color={branding.primaryColor} /> : null}
+      {activity.loading && activity.items.length === 0 ? <ActivityIndicator color={tc.primary} /> : null}
 
       {activity.items.length === 0 && !activity.loading ? (
-        <View style={[styles.card, styles.lastCard]}>
-          <Text style={styles.emptyText}>No operational activity recorded today.</Text>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
+          <Text style={styles.teacherEmptyText}>No operational activity recorded today.</Text>
         </View>
       ) : null}
 
       {activity.items.map((item) => (
-        <View key={item.id} style={styles.card}>
-          <Text style={styles.listRowTitle}>{activityLabel(item.code)}</Text>
-          <Text style={styles.listRowSubtext}>
+        <View key={item.id} style={styles.teacherCard}>
+          <Text style={styles.teacherListRowTitle}>{activityLabel(item.code)}</Text>
+          <Text style={styles.teacherListRowSubtext}>
             {item.actorName ?? 'System'}
             {item.actorRole ? ` · ${item.actorRole}` : ''} · {formatDate(item.createdAt)}
           </Text>
@@ -42,13 +45,13 @@ export default function OperationsActivityScreen() {
       ))}
 
       {activity.hasNextPage ? (
-        <View style={[styles.card, styles.lastCard, { alignItems: 'center' }]}>
+        <View style={[styles.teacherCard, styles.teacherLastCard, { alignItems: 'center' }]}>
           <Pressable
-            style={[styles.primaryButton, { backgroundColor: branding.primaryColor }, activity.loadingMore && styles.primaryButtonDisabled]}
+            style={[styles.teacherPrimaryButton, { backgroundColor: tc.primary, width: '100%' }, activity.loadingMore && styles.teacherPrimaryButtonDisabled]}
             onPress={activity.loadMore}
             disabled={activity.loadingMore}
           >
-            {activity.loadingMore ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Load More</Text>}
+            {activity.loadingMore ? <ActivityIndicator color="#fff" /> : <Text style={styles.teacherPrimaryButtonText}>Load More</Text>}
           </Pressable>
         </View>
       ) : null}

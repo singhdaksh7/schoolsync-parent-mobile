@@ -9,12 +9,15 @@ import { useTeacherHomework } from '@/hooks/useTeacherHomework';
 import { useTeacherPermissions } from '@/hooks/useTeacherPermissions';
 import { can } from '@/lib/teacher-permissions';
 import { styles } from '@/lib/styles';
+import { TeacherTheme } from '@/constants/theme';
 import type { TeacherAssignment } from '@/lib/types';
+
+const tc = TeacherTheme.colors;
 
 // No OCR, no AI, no photo analysis — a plain checked/unchecked + remarks
 // roster, exactly matching the actual backend contract.
 export default function TeacherNotebookScreen() {
-  const { role, branding } = useAuth();
+  const { role } = useAuth();
   const { hasFeature } = useFeatureBootstrap();
   const permissions = useTeacherPermissions();
   const homework = useTeacherHomework();
@@ -45,35 +48,35 @@ export default function TeacherNotebookScreen() {
 
   if (!notebookEnabled) {
     return (
-      <View style={styles.container}>
-        <View style={[styles.header, { backgroundColor: branding.primaryColor }]}>
-          <Text style={styles.title}>Notebook Checking</Text>
+      <View style={styles.teacherScreen}>
+        <View style={styles.teacherHeader}>
+          <Text style={styles.teacherHeaderTitle}>Notebook Checking</Text>
         </View>
-        <View style={[styles.card, styles.lastCard]}>
-          <Text style={styles.emptyText}>Notebook Checking is not enabled for your school.</Text>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
+          <Text style={styles.teacherEmptyText}>Notebook Checking is not enabled for your school.</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={[styles.header, { backgroundColor: branding.primaryColor }]}>
-        <Text style={styles.title}>Notebook Checking</Text>
+    <ScrollView style={styles.teacherScreen}>
+      <View style={styles.teacherHeader}>
+        <Text style={styles.teacherHeaderTitle}>Notebook Checking</Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Class / Section / Subject</Text>
+      <View style={styles.teacherCard}>
+        <Text style={styles.teacherInputLabel}>Class / Section / Subject</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {homework.assignments.map((assignment) => {
             const isSelected = selectedAssignment?.sectionId === assignment.sectionId && selectedAssignment?.subject === assignment.subject;
             return (
               <Pressable
                 key={`${assignment.sectionId}-${assignment.subject}`}
-                style={[styles.childChip, isSelected && { borderColor: branding.primaryColor, backgroundColor: '#eef6ff' }]}
+                style={[styles.childChip, isSelected && { borderColor: tc.secondary, backgroundColor: tc.secondaryContainer + '1a' }]}
                 onPress={() => setSelectedAssignment(assignment)}
               >
-                <Text style={[styles.childChipText, isSelected && { color: branding.primaryColor }]}>{assignment.subject}</Text>
+                <Text style={[styles.childChipText, isSelected && { color: tc.secondary }]}>{assignment.subject}</Text>
                 <Text style={styles.childChipSubtext}>
                   {assignment.className}-{assignment.sectionName}
                 </Text>
@@ -82,68 +85,73 @@ export default function TeacherNotebookScreen() {
           })}
         </ScrollView>
 
-        <Text style={styles.label}>Exam Milestone</Text>
+        <Text style={styles.teacherInputLabel}>Exam Milestone</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {milestones.milestones.map((milestone) => {
             const isSelected = selectedMilestoneId === milestone.id;
             return (
               <Pressable
                 key={milestone.id}
-                style={[styles.childChip, isSelected && { borderColor: branding.primaryColor, backgroundColor: '#eef6ff' }]}
+                style={[styles.childChip, isSelected && { borderColor: tc.secondary, backgroundColor: tc.secondaryContainer + '1a' }]}
                 onPress={() => setSelectedMilestoneId(milestone.id)}
               >
-                <Text style={[styles.childChipText, isSelected && { color: branding.primaryColor }]}>{milestone.name}</Text>
+                <Text style={[styles.childChipText, isSelected && { color: tc.secondary }]}>{milestone.name}</Text>
               </Pressable>
             );
           })}
-          {milestones.milestones.length === 0 && !milestones.loading ? <Text style={styles.emptyText}>No active exam milestones.</Text> : null}
+          {milestones.milestones.length === 0 && !milestones.loading ? <Text style={styles.teacherEmptyText}>No active exam milestones.</Text> : null}
         </ScrollView>
 
         <Pressable
           style={[
-            styles.primaryButton,
-            { backgroundColor: branding.primaryColor },
-            (!selectedAssignment || !selectedMilestoneId) && styles.primaryButtonDisabled,
+            styles.teacherPrimaryButton,
+            { backgroundColor: tc.primary, marginTop: 12 },
+            (!selectedAssignment || !selectedMilestoneId) && styles.teacherPrimaryButtonDisabled,
           ]}
           onPress={handleLoad}
           disabled={!selectedAssignment || !selectedMilestoneId || notebook.loading}
         >
-          {notebook.loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Load Roster</Text>}
+          {notebook.loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.teacherPrimaryButtonText}>Load Roster</Text>}
         </Pressable>
       </View>
 
       {notebook.error ? <Text style={styles.errorBanner}>{notebook.error}</Text> : null}
 
       {notebook.context && !canView ? (
-        <View style={[styles.card, styles.lastCard]}>
-          <Text style={styles.emptyText}>You do not have permission to view notebook checks for this section.</Text>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
+          <Text style={styles.teacherEmptyText}>You do not have permission to view notebook checks for this section.</Text>
         </View>
       ) : null}
 
       {notebook.context && canView ? (
-        <View style={[styles.card, styles.lastCard]}>
-          <Text style={styles.sectionTitle}>Roster</Text>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
+          <Text style={styles.teacherSectionTitle}>Roster</Text>
           {notebook.roster.map((entry) => (
-            <View key={entry.studentId} style={styles.teacherListItem}>
-              <View style={styles.teacherListBody}>
-                <Text style={styles.listRowTitle}>{entry.name}</Text>
-                <Text style={styles.listRowSubtext}>Roll {entry.rollNo}</Text>
-                {canMark ? (
-                  <TextInput
-                    style={styles.submitInput}
-                    placeholder="Remarks (optional)"
-                    placeholderTextColor="#8a8a8a"
-                    value={remarkDrafts[entry.studentId] ?? entry.remarks ?? ''}
-                    onChangeText={(v) => setRemarkDrafts((prev) => ({ ...prev, [entry.studentId]: v }))}
-                  />
-                ) : entry.remarks ? (
-                  <Text style={styles.remarkText}>{entry.remarks}</Text>
-                ) : null}
+            <View key={entry.studentId} style={styles.teacherListRow}>
+              <View style={styles.teacherListRowLeft}>
+                <View style={styles.teacherRollBadge}>
+                  <Text style={styles.teacherRollBadgeText}>{entry.rollNo}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.teacherListRowTitle}>{entry.name}</Text>
+                  <Text style={styles.teacherListRowSubtext}>Roll {entry.rollNo}</Text>
+                  {canMark ? (
+                    <TextInput
+                      style={styles.teacherInput}
+                      placeholder="Remarks (optional)"
+                      placeholderTextColor={tc.onSurfaceVariant}
+                      value={remarkDrafts[entry.studentId] ?? entry.remarks ?? ''}
+                      onChangeText={(v) => setRemarkDrafts((prev) => ({ ...prev, [entry.studentId]: v }))}
+                    />
+                  ) : entry.remarks ? (
+                    <Text style={styles.teacherMeta}>{entry.remarks}</Text>
+                  ) : null}
+                </View>
               </View>
               <Switch value={entry.checked} onValueChange={(v) => void toggleChecked(entry.studentId, v)} disabled={!canMark || notebook.saving} />
             </View>
           ))}
-          {notebook.roster.length === 0 ? <Text style={styles.emptyText}>No students in this section.</Text> : null}
+          {notebook.roster.length === 0 ? <Text style={styles.teacherEmptyText}>No students in this section.</Text> : null}
         </View>
       ) : null}
     </ScrollView>

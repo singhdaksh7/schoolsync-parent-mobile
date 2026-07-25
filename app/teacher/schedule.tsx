@@ -1,14 +1,19 @@
 import React, { useMemo } from 'react';
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth-context';
 import { useTeacherSchedule } from '@/hooks/useTeacherSchedule';
 import { styles } from '@/lib/styles';
 import { DAY_NAMES } from '@/lib/types';
+import { TeacherTheme } from '@/constants/theme';
+
+const tc = TeacherTheme.colors;
 
 export default function TeacherScheduleScreen() {
-  const { role, branding } = useAuth();
+  const { role } = useAuth();
   const schedule = useTeacherSchedule();
+  const insets = useSafeAreaInsets();
   const byDay = useMemo(() => {
     const groups = new Map<number, typeof schedule.slots>();
     for (const slot of schedule.slots) {
@@ -27,26 +32,28 @@ export default function TeacherScheduleScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={schedule.refreshing} onRefresh={schedule.handleRefresh} />}
     >
-      <View style={[styles.header, { backgroundColor: branding.primaryColor }]}>
-        <Text style={styles.title}>Schedule</Text>
+      <View style={[styles.teacherHeader, { paddingTop: insets.top + styles.teacherHeader.paddingVertical }]}>
+        <Text style={styles.teacherHeaderTitle}>Schedule</Text>
         {schedule.loading ? <ActivityIndicator color="#fff" /> : null}
       </View>
 
       {schedule.error ? <Text style={styles.errorBanner}>{schedule.error}</Text> : null}
 
       {byDay.map(([dayOfWeek, slots]) => (
-        <View key={dayOfWeek} style={styles.card}>
-          <Text style={styles.sectionTitle}>{DAY_NAMES[dayOfWeek] || `Day ${dayOfWeek}`}</Text>
+        <View key={dayOfWeek} style={styles.teacherCard}>
+          <Text style={styles.teacherSectionTitle}>{DAY_NAMES[dayOfWeek] || `Day ${dayOfWeek}`}</Text>
           {slots.map((slot, index) => (
-            <View key={`${dayOfWeek}-${slot.period}-${index}`} style={styles.teacherListItem}>
-              <View style={[styles.periodBadge, { borderColor: branding.primaryColor }]}>
-                <Text style={[styles.periodBadgeText, { color: branding.primaryColor }]}>P{slot.period}</Text>
-              </View>
-              <View style={styles.teacherListBody}>
-                <Text style={styles.listRowTitle}>{slot.subject || 'Subject TBD'}</Text>
-                <Text style={styles.listRowSubtext}>
-                  {slot.className}-{slot.sectionName}
-                </Text>
+            <View key={`${dayOfWeek}-${slot.period}-${index}`} style={styles.teacherListRow}>
+              <View style={styles.teacherListRowLeft}>
+                <View style={[styles.teacherRollBadge, { borderRadius: TeacherTheme.radii.DEFAULT, backgroundColor: tc.primary + '1f' }]}>
+                  <Text style={[styles.teacherRollBadgeText, { color: tc.primary }]}>P{slot.period}</Text>
+                </View>
+                <View>
+                  <Text style={styles.teacherListRowTitle}>{slot.subject || 'Subject TBD'}</Text>
+                  <Text style={styles.teacherListRowSubtext}>
+                    {slot.className}-{slot.sectionName}
+                  </Text>
+                </View>
               </View>
             </View>
           ))}
@@ -54,8 +61,8 @@ export default function TeacherScheduleScreen() {
       ))}
 
       {byDay.length === 0 && !schedule.loading ? (
-        <View style={[styles.card, styles.lastCard]}>
-          <Text style={styles.emptyText}>No timetable available.</Text>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
+          <Text style={styles.teacherEmptyText}>No timetable available.</Text>
         </View>
       ) : null}
     </ScrollView>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styles } from '@/lib/styles';
 
 /**
@@ -21,8 +22,9 @@ export function SubScreenHeader({
   rightIcon?: keyof typeof Ionicons.glyphMap;
   onRightPress?: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.subScreenHeader, { backgroundColor: color }]}>
+    <View style={[styles.subScreenHeader, { backgroundColor: color, paddingTop: insets.top + styles.subScreenHeader.paddingVertical }]}>
       <Pressable onPress={onBack} hitSlop={10}>
         <Ionicons name="arrow-back" size={24} color="#fff" />
       </Pressable>

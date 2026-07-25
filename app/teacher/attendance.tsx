@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Segmented } from '@/components/Segmented';
 import { useAuth } from '@/lib/auth-context';
 import { useFeatureBootstrap } from '@/hooks/useFeatureBootstrap';
@@ -11,13 +12,16 @@ import { useStudentAttendance, type StudentAttendanceStatus } from '@/hooks/useS
 import { can } from '@/lib/teacher-permissions';
 import { formatStatus } from '@/lib/format';
 import { styles } from '@/lib/styles';
+import { TeacherTheme } from '@/constants/theme';
+
+const tc = TeacherTheme.colors;
 
 type AttendanceTab = 'MY_ATTENDANCE' | 'STUDENT_ATTENDANCE';
 
 const STATUS_OPTIONS: StudentAttendanceStatus[] = ['PRESENT', 'ABSENT', 'LATE'];
 
 export default function TeacherAttendanceScreen() {
-  const { role, branding } = useAuth();
+  const { role } = useAuth();
   const { hasFeature } = useFeatureBootstrap();
   const permissions = useTeacherPermissions();
   const profile = useTeacherProfile();
@@ -25,6 +29,7 @@ export default function TeacherAttendanceScreen() {
   const roster = profile.profile?.mentorSection?.students ?? [];
   const studentAttendance = useStudentAttendance(roster);
   const [tab, setTab] = useState<AttendanceTab>('MY_ATTENDANCE');
+  const insets = useSafeAreaInsets();
 
   if (role !== 'TEACHER') return <Redirect href="/" />;
 
@@ -47,17 +52,17 @@ export default function TeacherAttendanceScreen() {
         />
       }
     >
-      <View style={[styles.header, { backgroundColor: branding.primaryColor }]}>
-        <Text style={styles.title}>Attendance</Text>
+      <View style={[styles.teacherHeader, { paddingTop: insets.top + styles.teacherHeader.paddingVertical }]}>
+        <Text style={styles.teacherHeaderTitle}>Attendance</Text>
       </View>
 
       {!attendanceEnabled ? (
-        <View style={[styles.card, styles.lastCard]}>
-          <Text style={styles.emptyText}>Attendance is not enabled for your school.</Text>
+        <View style={[styles.teacherCard, styles.teacherLastCard]}>
+          <Text style={styles.teacherEmptyText}>Attendance is not enabled for your school.</Text>
         </View>
       ) : (
         <>
-          <View style={styles.card}>
+          <View style={styles.teacherCard}>
             <Segmented
               value={tab}
               options={[
@@ -65,27 +70,27 @@ export default function TeacherAttendanceScreen() {
                 { value: 'STUDENT_ATTENDANCE', label: 'Student Attendance' },
               ]}
               onChange={setTab}
-              color={branding.primaryColor}
+              color={tc.primary}
             />
           </View>
 
           {tab === 'MY_ATTENDANCE' ? (
-            <View style={[styles.card, styles.attendanceCard, styles.lastCard]}>
-              <View style={styles.cardHeaderRow}>
+            <View style={[styles.teacherCard, styles.teacherLastCard, { gap: 12 }]}>
+              <View style={styles.teacherCardHeaderRow}>
                 <View>
-                  <Text style={styles.sectionTitle}>Your Attendance Today</Text>
-                  <Text style={styles.listRowSubtext}>Self check-in</Text>
+                  <Text style={styles.teacherSectionTitle}>Your Attendance Today</Text>
+                  <Text style={styles.teacherListRowSubtext}>Self check-in</Text>
                 </View>
-                <Text style={[styles.statusBadge, isPresent ? styles.statusBadgeSuccess : styles.statusBadgeMuted]}>
+                <Text style={[styles.teacherPill, isPresent ? styles.teacherPillPresent : styles.teacherPillMuted]}>
                   {formatStatus(status)}
                 </Text>
               </View>
               {selfAttendance.error ? <Text style={styles.inlineErrorText}>{selfAttendance.error}</Text> : null}
               <Pressable
                 style={[
-                  styles.primaryButton,
-                  { backgroundColor: isPresent ? '#94a3b8' : branding.primaryColor },
-                  (selfAttendance.loading || selfAttendance.marking || !canMarkSelf) && styles.primaryButtonDisabled,
+                  styles.teacherPrimaryButton,
+                  { backgroundColor: isPresent ? tc.surfaceContainerHigh : tc.primary },
+                  (selfAttendance.loading || selfAttendance.marking || !canMarkSelf) && styles.teacherPrimaryButtonDisabled,
                 ]}
                 onPress={selfAttendance.markPresent}
                 disabled={selfAttendance.loading || selfAttendance.marking || !canMarkSelf}
@@ -93,30 +98,35 @@ export default function TeacherAttendanceScreen() {
                 {selfAttendance.marking ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.primaryButtonText}>{isPresent ? 'Present Marked' : cutoffPassed ? 'Cutoff Passed' : 'Mark Present'}</Text>
+                  <Text style={styles.teacherPrimaryButtonText}>{isPresent ? 'Present Marked' : cutoffPassed ? 'Cutoff Passed' : 'Mark Present'}</Text>
                 )}
               </Pressable>
             </View>
           ) : (
-            <View style={[styles.card, styles.lastCard]}>
-              <View style={styles.cardHeaderRow}>
-                <Text style={styles.sectionTitle}>Mentor Section Attendance</Text>
-                {(profile.loading || studentAttendance.loading) ? <ActivityIndicator color={branding.primaryColor} /> : null}
+            <View style={[styles.teacherCard, styles.teacherLastCard]}>
+              <View style={styles.teacherCardHeaderRow}>
+                <Text style={styles.teacherSectionTitle}>Mentor Section Attendance</Text>
+                {(profile.loading || studentAttendance.loading) ? <ActivityIndicator color={tc.primary} /> : null}
               </View>
-              <Text style={styles.listRowSubtext}>{studentAttendance.date}</Text>
+              <Text style={styles.teacherListRowSubtext}>{studentAttendance.date}</Text>
 
               {!profile.profile?.mentorSectionId ? (
-                <Text style={styles.emptyText}>No mentor section assigned — student attendance is unavailable.</Text>
+                <Text style={styles.teacherEmptyText}>No mentor section assigned — student attendance is unavailable.</Text>
               ) : !canViewStudents ? (
-                <Text style={styles.emptyText}>You do not have permission to view student attendance.</Text>
+                <Text style={styles.teacherEmptyText}>You do not have permission to view student attendance.</Text>
               ) : (
                 <>
                   {studentAttendance.error ? <Text style={styles.inlineErrorText}>{studentAttendance.error}</Text> : null}
                   {studentAttendance.rows.map((row) => (
-                    <View key={row.studentId} style={styles.teacherListItem}>
-                      <View style={styles.teacherListBody}>
-                        <Text style={styles.listRowTitle}>{row.name}</Text>
-                        <Text style={styles.listRowSubtext}>Roll {row.rollNo}</Text>
+                    <View key={row.studentId} style={styles.teacherListRow}>
+                      <View style={styles.teacherListRowLeft}>
+                        <View style={styles.teacherRollBadge}>
+                          <Text style={styles.teacherRollBadgeText}>{row.rollNo}</Text>
+                        </View>
+                        <View>
+                          <Text style={styles.teacherListRowTitle}>{row.name}</Text>
+                          <Text style={styles.teacherListRowSubtext}>Roll {row.rollNo}</Text>
+                        </View>
                       </View>
                       <View style={{ flexDirection: 'row', gap: 6 }}>
                         {STATUS_OPTIONS.map((option) => {
@@ -127,11 +137,11 @@ export default function TeacherAttendanceScreen() {
                               disabled={!canMarkStudents}
                               onPress={() => studentAttendance.setStatus(row.studentId, option)}
                               style={[
-                                styles.methodPill,
-                                selected && { backgroundColor: branding.primaryColor },
+                                styles.teacherTogglePill,
+                                selected && { backgroundColor: tc.secondary, borderColor: tc.secondary },
                               ]}
                             >
-                              <Text style={[{ fontSize: 10, fontWeight: '700', color: selected ? '#fff' : '#374151' }]}>
+                              <Text style={[styles.teacherTogglePillText, selected && { color: '#fff' }]}>
                                 {option === 'PRESENT' ? 'P' : option === 'ABSENT' ? 'A' : 'L'}
                               </Text>
                             </Pressable>
@@ -140,14 +150,14 @@ export default function TeacherAttendanceScreen() {
                       </View>
                     </View>
                   ))}
-                  {studentAttendance.rows.length === 0 ? <Text style={styles.emptyText}>No students in your mentor section.</Text> : null}
+                  {studentAttendance.rows.length === 0 ? <Text style={styles.teacherEmptyText}>No students in your mentor section.</Text> : null}
 
                   {canMarkStudents ? (
                     <Pressable
                       style={[
-                        styles.primaryButton,
-                        { backgroundColor: branding.primaryColor },
-                        (!studentAttendance.hasEdits || studentAttendance.submitting) && styles.primaryButtonDisabled,
+                        styles.teacherPrimaryButton,
+                        { backgroundColor: tc.primary, marginTop: 12 },
+                        (!studentAttendance.hasEdits || studentAttendance.submitting) && styles.teacherPrimaryButtonDisabled,
                       ]}
                       onPress={studentAttendance.submit}
                       disabled={!studentAttendance.hasEdits || studentAttendance.submitting}
@@ -155,7 +165,7 @@ export default function TeacherAttendanceScreen() {
                       {studentAttendance.submitting ? (
                         <ActivityIndicator color="#fff" />
                       ) : (
-                        <Text style={styles.primaryButtonText}>Submit Attendance</Text>
+                        <Text style={styles.teacherPrimaryButtonText}>Submit Attendance</Text>
                       )}
                     </Pressable>
                   ) : null}

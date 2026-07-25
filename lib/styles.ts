@@ -4,9 +4,13 @@
 // Colors/typography/spacing/radii are drawn from the "Academic Clarity"
 // design tokens in constants/theme.ts.
 import { StyleSheet } from 'react-native';
-import { Theme } from '@/constants/theme';
+import { Theme, TeacherTheme } from '@/constants/theme';
 
 const { colors, typography, spacing, radii } = Theme;
+const tc = TeacherTheme.colors;
+const tt = TeacherTheme.typography;
+const tr = TeacherTheme.radii;
+const ts = TeacherTheme.spacing;
 
 export const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
@@ -263,4 +267,69 @@ export const styles = StyleSheet.create({
 
   // Loading Skeleton — dashboard-bento-shaped.
   liquidSkeletonRow: { flexDirection: 'row', gap: spacing.md },
+
+  // ===== Teacher Portal flat restyle (Stitch "Teacher Management Portal") =====
+  // Screen-local chrome for app/teacher/** only — does NOT touch the shared
+  // `card`/`header`/`sectionTitle`/`portalGrid`/`segmented`/`emptyState*` keys
+  // above (those back components/PortalGrid.tsx, PortalSearch.tsx,
+  // Segmented.tsx, EmptyState.tsx, SubScreenHeader.tsx, shared with
+  // Student/Parent). No glass/blur — flat white cards, hairline borders.
+  teacherScreen: { flex: 1, backgroundColor: tc.background },
+  teacherHeader: { paddingHorizontal: 16, paddingVertical: 20, backgroundColor: tc.primary },
+  teacherHeaderTitle: { ...tt.headlineMd, color: '#fff' },
+  teacherHeaderSubtitle: { ...tt.meta, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+
+  teacherCard: {
+    backgroundColor: tc.surfaceContainerLowest,
+    borderRadius: tr.lg,
+    borderWidth: 1,
+    borderColor: tc.cardBorder,
+    marginHorizontal: ts.lg,
+    marginTop: ts.lg,
+    padding: ts.lg,
+    ...TeacherTheme.shadowCard,
+  },
+  teacherLastCard: { marginBottom: ts.xl },
+  teacherCardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: ts.md },
+  teacherSectionTitle: { ...tt.headlineMd, color: tc.onSurface },
+  teacherCardTitle: { ...tt.bodyBold, color: tc.onSurface },
+  teacherLabelCaps: { ...tt.labelCaps, textTransform: 'uppercase', color: tc.onSurfaceVariant },
+  teacherMeta: { ...tt.meta, color: tc.onSurfaceVariant },
+  teacherBody: { ...tt.bodyBase, color: tc.onSurface },
+  teacherStatValue: { ...tt.statLg, color: tc.onSurface },
+
+  teacherListRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: ts.md, borderBottomWidth: 1, borderBottomColor: tc.surfaceContainer },
+  teacherListRowLeft: { flexDirection: 'row', alignItems: 'center', gap: ts.md, flexShrink: 1, paddingRight: ts.sm },
+  teacherListRowTitle: { ...tt.bodyBold, color: tc.onSurface },
+  teacherListRowSubtext: { ...tt.meta, color: tc.onSurfaceVariant, marginTop: 2 },
+  teacherRollBadge: { width: 32, height: 32, borderRadius: tr.full, alignItems: 'center', justifyContent: 'center', backgroundColor: tc.secondaryContainer + '26' },
+  teacherRollBadgeText: { ...tt.labelCaps, color: tc.secondary },
+
+  // Semantic status pills (Present/Late/Absent) — pill-shaped per Stitch spec.
+  teacherPill: { alignSelf: 'flex-start', borderRadius: tr.full, paddingHorizontal: ts.sm, paddingVertical: 3, ...tt.labelCaps, textTransform: 'uppercase' },
+  teacherPillPresent: { backgroundColor: tc.successContainer, color: tc.success },
+  teacherPillLate: { backgroundColor: tc.warningContainer, color: tc.warning },
+  teacherPillAbsent: { backgroundColor: tc.errorContainer, color: tc.onErrorContainer },
+  teacherPillMuted: { backgroundColor: tc.surfaceContainer, color: tc.onSurfaceVariant },
+
+  // Buttons.
+  teacherPrimaryButton: { borderRadius: tr.DEFAULT, paddingVertical: ts.md, alignItems: 'center', backgroundColor: tc.primary },
+  teacherPrimaryButtonDisabled: { backgroundColor: tc.surfaceContainerHigh },
+  teacherPrimaryButtonText: { ...tt.bodyBold, color: '#fff' },
+  teacherSecondaryButton: { borderRadius: tr.DEFAULT, paddingVertical: ts.md, alignItems: 'center', borderWidth: 1, borderColor: tc.secondary, backgroundColor: 'transparent' },
+  teacherSecondaryButtonText: { ...tt.bodyBold, color: tc.secondary },
+
+  // Inputs.
+  teacherInput: { borderWidth: 1, borderColor: tc.outlineVariant, borderRadius: tr.DEFAULT, paddingHorizontal: ts.md, paddingVertical: ts.sm + 2, ...tt.bodyBase, color: tc.onSurface, backgroundColor: tc.surfaceContainerLowest },
+  teacherInputLabel: { ...tt.meta, color: tc.onSurfaceVariant, marginBottom: ts.xs, fontWeight: '600' },
+
+  // Icon container for tile/summary icons — 40x40, 20%-tint of primary.
+  teacherIconWrap: { width: 40, height: 40, borderRadius: tr.DEFAULT, alignItems: 'center', justifyContent: 'center', backgroundColor: tc.primary + '1f' },
+
+  // Segmented 3-state toggle look-alike for Present/Late/Absent grading UIs
+  // that render their own row (not going through components/Segmented.tsx).
+  teacherTogglePill: { minWidth: 36, borderRadius: tr.DEFAULT, borderWidth: 1, borderColor: tc.outlineVariant, paddingVertical: 7, paddingHorizontal: 8, alignItems: 'center' },
+  teacherTogglePillText: { ...tt.labelCaps, color: tc.onSurfaceVariant },
+
+  teacherEmptyText: { ...tt.bodyBase, color: tc.onSurfaceVariant },
 });
