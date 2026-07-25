@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth-context';
 import { buildAttendanceSubmission } from '@/lib/attendance-submit';
 import { cacheKey, cachedFetch, CACHE_TTL, invalidatePrefix } from '@/lib/query-cache';
 import { useForegroundRefresh } from './useForegroundRefresh';
-import type { StudentAttendanceRecord, StudentAttendanceStatus, StudentRosterRow } from '@/lib/types';
+import type { StudentAttendanceRecord, StudentAttendanceSessionResponse, StudentAttendanceStatus, StudentRosterRow } from '@/lib/types';
 
 export type { StudentAttendanceStatus, StudentRosterRow } from '@/lib/types';
 
@@ -41,10 +41,20 @@ export function useStudentAttendance(roster: { id: string; name: string; rollNo:
         const result = await cachedFetch(
           cacheKey(token, SCOPE, date),
           CACHE_TTL.ATTENDANCE,
-          () => apiRequest<StudentAttendanceRecord[]>(`/api/teacher/attendance?date=${encodeURIComponent(date)}`, {}, token),
+          () =>
+            apiRequest<StudentAttendanceRecord[] | StudentAttendanceSessionResponse>(
+              `/api/teacher/attendance?date=${encodeURIComponent(date)}`,
+              {},
+              token
+            ),
           { force }
         );
-        setRecords(result);
+        // The live backend returns a session envelope ({ roster, ... }), not
+        // a bare array — see the note on StudentAttendanceSessionResponse.
+        // Array.isArray guards both shapes so this never crashes regardless
+        // of which one comes back.
+        const roster = Array.isArray(result) ? result : Array.isArray(result?.roster) ? result.roster : [];
+        setRecords(roster as StudentAttendanceRecord[]);
         setEdits({});
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'Failed to load student attendance.');
@@ -64,7 +74,9 @@ export function useStudentAttendance(roster: { id: string; name: string; rollNo:
   useForegroundRefresh(useCallback(() => load(), [load]));
 
   const rows: StudentRosterRow[] = useMemo(() => {
-    const byStudentId = new Map(records.map((r) => [r.studentId, r.status]));
+    const byStudentId = new Map(
+      (Array.isArray(records) ? records : []).map((r) => [(r as { studentId?: string; id?: string }).studentId ?? r.id, r.status])
+    );
     return roster.map((student) => ({
       studentId: student.id,
       name: student.name,
