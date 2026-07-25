@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Segmented } from '@/components/Segmented';
 import { useAuth } from '@/lib/auth-context';
 import { useFeatureBootstrap } from '@/hooks/useFeatureBootstrap';
@@ -28,6 +29,7 @@ export default function TeacherAttendanceScreen() {
   const roster = profile.profile?.mentorSection?.students ?? [];
   const studentAttendance = useStudentAttendance(roster);
   const [tab, setTab] = useState<AttendanceTab>('MY_ATTENDANCE');
+  const insets = useSafeAreaInsets();
 
   if (role !== 'TEACHER') return <Redirect href="/" />;
 
@@ -50,7 +52,7 @@ export default function TeacherAttendanceScreen() {
         />
       }
     >
-      <View style={styles.teacherHeader}>
+      <View style={[styles.teacherHeader, { paddingTop: insets.top + styles.teacherHeader.paddingVertical }]}>
         <Text style={styles.teacherHeaderTitle}>Attendance</Text>
       </View>
 

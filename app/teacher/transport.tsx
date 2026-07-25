@@ -1,6 +1,7 @@
 import React from 'react';
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TransportCard } from '@/components/TransportCard';
 import { EmptyState } from '@/components/EmptyState';
 import { useTeacherTransportTrips } from '@/hooks/useTeacherTransportTrips';
@@ -11,6 +12,7 @@ import { TeacherTheme } from '@/constants/theme';
 export default function TeacherTransportScreen() {
   const { role } = useAuth();
   const transport = useTeacherTransportTrips();
+  const insets = useSafeAreaInsets();
 
   if (role !== 'TEACHER') return <Redirect href="/" />;
 
@@ -19,7 +21,7 @@ export default function TeacherTransportScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={transport.loading} onRefresh={transport.refresh} />}
     >
-      <View style={styles.teacherHeader}>
+      <View style={[styles.teacherHeader, { paddingTop: insets.top + styles.teacherHeader.paddingVertical }]}>
         <Text style={styles.teacherHeaderTitle}>Transport</Text>
         {transport.loading ? <ActivityIndicator color="#fff" /> : null}
       </View>

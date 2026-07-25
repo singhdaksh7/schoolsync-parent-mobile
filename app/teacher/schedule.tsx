@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth-context';
 import { useTeacherSchedule } from '@/hooks/useTeacherSchedule';
 import { styles } from '@/lib/styles';
@@ -12,6 +13,7 @@ const tc = TeacherTheme.colors;
 export default function TeacherScheduleScreen() {
   const { role } = useAuth();
   const schedule = useTeacherSchedule();
+  const insets = useSafeAreaInsets();
   const byDay = useMemo(() => {
     const groups = new Map<number, typeof schedule.slots>();
     for (const slot of schedule.slots) {
@@ -30,7 +32,7 @@ export default function TeacherScheduleScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={schedule.refreshing} onRefresh={schedule.handleRefresh} />}
     >
-      <View style={styles.teacherHeader}>
+      <View style={[styles.teacherHeader, { paddingTop: insets.top + styles.teacherHeader.paddingVertical }]}>
         <Text style={styles.teacherHeaderTitle}>Schedule</Text>
         {schedule.loading ? <ActivityIndicator color="#fff" /> : null}
       </View>

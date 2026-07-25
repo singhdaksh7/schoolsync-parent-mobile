@@ -1,6 +1,7 @@
 import React from 'react';
 import { Redirect } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth-context';
 import { useTeacherPermissions } from '@/hooks/useTeacherPermissions';
 import { roleLabel } from '@/lib/format';
@@ -12,12 +13,13 @@ const tc = TeacherTheme.colors;
 export default function TeacherProfileScreen() {
   const { role, user, branding, logout } = useAuth();
   const permissions = useTeacherPermissions();
+  const insets = useSafeAreaInsets();
 
   if (role !== 'TEACHER') return <Redirect href="/" />;
 
   return (
     <ScrollView style={styles.teacherScreen}>
-      <View style={styles.teacherHeader}>
+      <View style={[styles.teacherHeader, { paddingTop: insets.top + styles.teacherHeader.paddingVertical }]}>
         <Text style={styles.teacherHeaderTitle}>Profile</Text>
       </View>
 
